@@ -32,3 +32,19 @@ Si quieres:
 - Añadir campo "Ubicación" con enlace a Google Maps,
 
 Puedo entregarlo en la siguiente iteración.
+
+# Widget Tarifario UNH (avanzado)
+
+Instrucciones:
+- Colocar `index.html`, `style.css`, `script.js` en la raíz del repo.
+- Activar GitHub Pages en Settings → Pages → main / root.
+- Esperar 1-3 minutos y abrir la URL del sitio.
+
+Características:
+- Consume CSV publicado desde Google Sheets (URL en index.html).
+- PapaParse para parseo robusto.
+- Fuse.js para búsqueda fuzzy.
+- Slider doble para filtrar por monto.
+- Paginación (21 por página).
+- Modal con requisitos y contactos.
+
