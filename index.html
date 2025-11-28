@@ -1,97 +1,90 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tarifario TUPA / TUSNE - UNH</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tarifas TUPA – TUSNE</title>
 
-  <!-- Tipografía -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
 
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Librerías: PapaParse y Fuse (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js"></script>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 </head>
+
 <body>
 
-  <header class="site-header">
-    <div class="site-title">
-      <h1>Tarifario TUPA / TUSNE — UNH</h1>
-      <p class="subtitle">Buscador interactivo de tarifas, requisitos y contactos</p>
-    </div>
-  </header>
+<header class="site-header">
+    <h1>Tarifario TUPA / TUSNE</h1>
+    <p class="subtitle">Consulta interactiva de tarifas universitarias</p>
+</header>
 
-  <main class="container">
+<div class="container">
 
-    <section class="controls">
-      <div class="search-wrap">
-        <input id="searchInput" type="search" placeholder="Buscar (tarifa, proceso, unidad, área)..." />
-      </div>
+    <!-- Filtros -->
+    <div class="controls">
 
-      <div class="filters-wrap">
-        <select id="unidadFilter" class="filter-select">
-          <option value="">Unidad Responsable</option>
-        </select>
-
-        <select id="procesoFilter" class="filter-select">
-          <option value="">Proceso</option>
-        </select>
-
-        <div class="monto-filter">
-          <label class="monto-label">Monto (S/)</label>
-          <div class="slider-wrap">
-            <input type="range" id="minSlider" />
-            <input type="range" id="maxSlider" />
-          </div>
-          <div class="monto-values">
-            <span id="minValue">0</span>
-            <span id="maxValue">0</span>
-          </div>
+        <!-- Buscador -->
+        <div class="search-wrap">
+            <input id="searchInput" type="text" placeholder="Buscar (tarifa, proceso, unidad, área)...">
         </div>
-      </div>
-    </section>
 
-    <div id="status" class="status">Cargando datos…</div>
+        <!-- Selects -->
+        <div class="filters-wrap">
+            <select id="unidadFilter" class="filter-select">
+                <option value="">Unidad Responsable</option>
+            </select>
 
-    <section id="cardsArea" class="cards-area">
-      <div id="cards" class="cards"></div>
-    </section>
+            <select id="procesoFilter" class="filter-select">
+                <option value="">Proceso</option>
+            </select>
+        </div>
 
-    <nav id="pagination" class="pagination"></nav>
+        <!-- Monto -->
+        <div class="monto-filter">
+            <div class="monto-label">Monto (S/)</div>
 
-  </main>
+            <div class="slider-wrap">
+                <input type="range" id="minMonto" min="0" max="3000" value="0">
+                <input type="range" id="maxMonto" min="0" max="3000" value="3000">
+            </div>
 
-  <!-- Modal (Requisitos + Unidad + Área + Contacto) -->
-  <div id="modalOverlay" class="modal-overlay hidden">
-    <div class="modal">
-      <button id="modalClose" class="modal-close" aria-label="Cerrar">✕</button>
-      <h2>REQUISITOS</h2>
-      <div id="modalBody" class="modal-body"></div>
+            <div class="monto-values">
+                <span id="minMontoValue">0</span>
+                <span id="maxMontoValue">3000</span>
+            </div>
+        </div>
 
-      <div class="modal-meta">
-        <p><strong>Unidad Responsable:</strong> <span id="modalUnidad"></span></p>
-        <p><strong>Área encargada:</strong> <span id="modalArea"></span></p>
-        <p><strong>Contacto:</strong>
-          <a id="modalCorreo" href="#" target="_blank" rel="noopener noreferrer"><i class="bi bi-envelope-fill"></i> Correo</a>
-          &nbsp;|&nbsp;
-          <a id="modalWhats" href="#" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp"></i> WhatsApp</a>
-        </p>
-      </div>
     </div>
-  </div>
 
-  <!-- Config: CSV público (tu URL ya incluida) -->
-  <script>
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
-  </script>
+    <!-- Estado -->
+    <div id="status" class="status"></div>
 
-  <!-- Script principal -->
-  <script src="script.js"></script>
+    <!-- Cards -->
+    <div id="cardsContainer" class="cards"></div>
+
+    <!-- Paginación -->
+    <div id="pagination" class="pagination"></div>
+</div>
+
+<!-- Modal -->
+<div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <h2 id="modalTitle"></h2>
+
+        <div class="modal-meta">
+            <p><strong>Unidad Responsable:</strong> <span id="modalUnidad"></span></p>
+            <p><strong>Área Encargada:</strong> <span id="modalArea"></span></p>
+            <p><strong>Correo:</strong> <span id="modalCorreo"></span></p>
+            <p><strong>Teléfono:</strong> <span id="modalTelefono"></span></p>
+        </div>
+
+        <h3>Requisitos</h3>
+        <div id="modalRequisitos" class="modal-body"></div>
+    </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
