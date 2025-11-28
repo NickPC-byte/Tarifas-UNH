@@ -220,42 +220,101 @@ body{
 .btn-ws{ background:#25D366 }
 
 /* Modal */
-.modal-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:9999;
-}
-.hidden{ display:none }
-
-.modal{
-  background:#fff;
-  padding:20px;
-  border-radius:10px;
-  width:100%;
-  max-width:720px;
-  position:relative;
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.46);
+    z-index: 9999;
+    padding: 18px;
 }
 
-.modal-close{
-  position:absolute;
-  right:12px;
-  top:10px;
-  border:none;
-  background:transparent;
-  font-size:28px;
-  cursor:pointer;
+.modal {
+    background: #fff;
+    width: 100%;
+    max-width: 750px;
+    border-radius: 14px;
+    padding: 26px;
+    box-shadow: 0 10px 36px rgba(0,0,0,0.24);
+    position: relative;
+    animation: modalFade .22s ease-out;
 }
 
-.modal-body{
-  background:#f4f7fc;
-  padding:12px;
-  border-radius:8px;
-  white-space:pre-wrap;
-  margin-top:8px;
+/* Animación suave */
+@keyframes modalFade {
+    from { transform: scale(.92); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+/* Título */
+.modal h2 {
+    margin: 0 0 16px;
+    color: var(--azul-oscuro);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.modal h3 {
+    margin-top: 18px;
+    color: var(--azul-oscuro);
+    font-size: 18px;
+}
+
+/* Info inferior */
+.modal-meta {
+    margin-top: 14px;
+    padding: 14px;
+    background: #f7fbff;
+    border-radius: 10px;
+    border-left: 5px solid var(--azul-claro);
+}
+
+.modal-meta p {
+    margin: 6px 0;
+    font-size: 14px;
+    color: var(--gris-texto);
+}
+
+/* Enlaces clickeables */
+.modal-meta a {
+    color: var(--azul-oscuro);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.modal-meta a:hover {
+    text-decoration: underline;
+}
+
+/* Cerrar */
+.modal-close {
+    position: absolute;
+    right: 14px;
+    top: 10px;
+    background: var(--azul-oscuro);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Cuerpo de requisitos */
+.modal-body {
+    background: #f7fbff;
+    padding: 16px;
+    border-radius: 12px;
+    border-left: 4px solid var(--azul-claro);
+    font-size: 15px;
+    line-height: 1.55;
+    margin-top: 8px;
 }
 
 .modal h2{ margin-top:0 }
