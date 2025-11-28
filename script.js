@@ -310,40 +310,66 @@ function renderPage(page) {
 }
 
 // MODAL
-function openModal(item) {
-    modalTitle.textContent = item.tarifa || item.proceso;
+function openModal(item){
 
-    // requisitos → viñetas
-    let req = item.requisitos || "";
-    let parts = req.includes("\n") ? req.split(/\n+/) :
-                req.includes(";") ? req.split(/\s*;\s*/) :
-                [req];
+  // Título del modal (tarifa/proceso)
+  modalTitle.textContent = item.proceso || item.tarifa || "Detalle";
 
-    modalRequisitos.innerHTML = "";
-    const ul = document.createElement("ul");
+  // META INFORMATIVA (con íconos)
+  modalUnidad.innerHTML = `<i class="bi bi-building"></i> ${escapeHTML(item.unidad || "—")}`;
+  modalArea.innerHTML = `<i class="bi bi-diagram-3"></i> ${escapeHTML(item.area || "—")}`;
 
-    parts.forEach(r => {
-        if (r.trim().length > 0) {
-            const li = document.createElement("li");
-            li.textContent = r.trim();
-            ul.appendChild(li);
-        }
-    });
+  // Correo con enlace clicable
+  if(item.correo){
+    modalCorreo.innerHTML =
+      `<i class="bi bi-envelope"></i> 
+       <a href="mailto:${item.correo}" target="_blank">${item.correo}</a>`;
+  } else {
+    modalCorreo.innerHTML = `<i class="bi bi-envelope"></i> —`;
+  }
 
-    modalRequisitos.appendChild(ul);
+  // Teléfono con link hacia WhatsApp
+  const cel = (item.celular || "").replace(/\D/g,"");
 
-    modalUnidad.textContent = item.unidad;
-    modalArea.textContent = item.area;
-    modalCorreo.textContent = item.correo || "—";
-    modalTelefono.textContent = item.celular || "—";
+  if(cel){
+    modalTelefono.innerHTML =
+      `<i class="bi bi-telephone"></i> 
+       <a href="https://wa.me/51${cel}" target="_blank">${cel}</a>`;
+  } else {
+    modalTelefono.innerHTML = `<i class="bi bi-telephone"></i> —`;
+  }
 
-    modalOverlay.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+  // ===============================
+  //   REQUISITOS CON VIÑETAS
+  // ===============================
+  let text = item.requisitos || "No especificado";
+  let parts = [];
+
+  if(text.includes("\n")) parts = text.split(/\n+/);
+  else if(text.includes(";")) parts = text.split(/\s*;\s*/);
+  else if(text.includes(".") && text.length > 40) parts = text.split(/\.\s+/);
+  else parts = [text];
+
+  modalRequisitos.innerHTML = "";
+  const ul = document.createElement("ul");
+
+  parts.forEach(p => {
+    const li = document.createElement("li");
+    li.textContent = p.trim();
+    ul.appendChild(li);
+  });
+
+  modalRequisitos.appendChild(ul);
+
+  // Mostrar modal
+  modalOverlay.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 }
 
-function closeModal() {
-    modalOverlay.classList.add("hidden");
-    document.body.style.overflow = "";
+
+function closeModal(){
+  modalOverlay.classList.add("hidden");
+  document.body.style.overflow = "";
 }
 
 // Eventos de cierre
