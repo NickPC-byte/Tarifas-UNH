@@ -1,26 +1,31 @@
-/* script.js corregido para los últimos IDs del HTML
-   - PapaParse CSV parsing
-   - Fuse.js fuzzy search (si está disponible)
-   - doble slider para monto (minMonto / maxMonto)
-   - paginación (21 por página)
-   - modal con requisitos + unidad + area + contactos
-   - orden: TUPA primero
-*/
+/* ============================================================
+   Script avanzado — Tarifario TUPA/TUSNE
+   Incluye:
+   - PapaParse (CSV)
+   - Fuse.js (búsqueda difusa)
+   - Cards con PROCESO como título
+   - Modal elegante con requisitos + unidad + área + contacto
+   - Paginación (21 por página)
+   - Filtro por monto (slider doble)
+   - Orden TUPA primero
+   ============================================================ */
 
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
+/* ========= CONFIG ========= */
+const CSV_URL = typeof SHEET_CSV_URL !== "undefined" ? SHEET_CSV_URL : "";
 
-// Elementos del DOM (IDs según tu último HTML)
+/* ========= ELEMENTOS ========= */
 const searchInput = document.getElementById("searchInput");
 const unidadFilter = document.getElementById("unidadFilter");
 const procesoFilter = document.getElementById("procesoFilter");
+
+const minMonto = document.getElementById("minMonto");
+const maxMonto = document.getElementById("maxMonto");
+const minMontoValue = document.getElementById("minMontoValue");
+const maxMontoValue = document.getElementById("maxMontoValue");
+
 const cardsContainer = document.getElementById("cardsContainer");
 const statusEl = document.getElementById("status");
 const paginationEl = document.getElementById("pagination");
-
-const minMontoInput = document.getElementById("minMonto");
-const maxMontoInput = document.getElementById("maxMonto");
-const minMontoValue = document.getElementById("minMontoValue");
-const maxMontoValue = document.getElementById("maxMontoValue");
 
 // Modal
 const modalOverlay = document.getElementById("modalOverlay");
@@ -30,367 +35,276 @@ const modalArea = document.getElementById("modalArea");
 const modalCorreo = document.getElementById("modalCorreo");
 const modalTelefono = document.getElementById("modalTelefono");
 const modalRequisitos = document.getElementById("modalRequisitos");
-// optional close if exists with id modalClose
-const modalCloseBtn = document.getElementById("modalClose");
 
-// Data
 let rawData = [];
-let mappedData = [];
-let fuse = null;
 let filteredData = [];
-let pageSize = 21;
+let fuse;
 let currentPage = 1;
+const pageSize = 21;
 
-// UTILIDADES
-function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
-
-function parseMonto(v){
-  if(!v) return 0;
-  let s = v.toString().trim();
-  s = s.replace(/S\/|s\/|soles|sol/gi, "");
-  // remove thousands separators: if "." used as thousand, and "," as decimal may be ambiguous.
-  s = s.replace(/\s/g,"");
-  s = s.replace(/,/g,".");
-  s = s.replace(/[^0-9.]/g,"");
-  const parts = s.split(".");
-  if(parts.length>2){
-    const dec = parts.pop();
-    s = parts.join("") + "." + dec;
-  }
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+/* ========= UTILIDADES ========= */
+function keyify(s) {
+    return s ? s.toString().trim().toLowerCase().replace(/\s+/g, " ") : "";
 }
 
-function escapeHTML(s){
-  if(!s) return "";
-  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+function escapeHTML(s) {
+    if (!s) return "";
+    return s.replace(/[&<>"']/g, m => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    }[m]));
 }
 
-// Mapear fila CSV a modelo consistente
-function mapRow(row){
-  const normalized = {};
-  Object.keys(row || {}).forEach(k => normalized[keyify(k)] = (row[k] || "").toString().trim());
-
-  const out = {};
-  out.origen = normalized["tupa/tusne"] || normalized["tupa/tusne (origen de la tarifa)"] || normalized["origen"] || "";
-  out.unidad = normalized["centro de costo"] || normalized["unidad responsable"] || "";
-  out.cxc = normalized["cxc"] || "";
-  out.area = normalized["área responsable de brindar el servicio"] || normalized["area responsable de brindar el servicio"] || normalized["area"] || out.unidad;
-  out.proceso = normalized["proceso"] || "";
-  out.tarifa = normalized["tarifas"] || normalized["tarifa"] || normalized["denominación de la tarifa"] || "";
-  out.montoRaw = normalized["monto"] || "";
-  out.monto = parseMonto(out.montoRaw);
-  out.requisitos = normalized["requisitos generales"] || normalized["requisitos"] || "";
-  out.correo = normalized["correo"] || "";
-  out.celular = (normalized["n° celular"] || normalized["numero celular"] || normalized["celular"] || "").replace(/\s/g,"");
-  return out;
+function parseMonto(v) {
+    if (!v) return 0;
+    let s = v.toString().replace(/\s/g, "");
+    s = s.replace(/S\/|s\/|soles|sol/gi, "");
+    s = s.replace(/,/g, ".");
+    s = s.replace(/[^0-9.]/g, "");
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
 }
 
-// CARGA CSV con PapaParse
-function loadCSV(url){
-  statusEl.textContent = "Cargando datos...";
-  if(typeof Papa === "undefined"){
-    statusEl.textContent = "Error: PapaParse no está cargado.";
-    console.error("PapaParse no encontrado.");
-    return;
-  }
+/* ========= MAPEO DE FILAS ========= */
+function mapRow(row) {
+    const n = {};
+    Object.keys(row).forEach(k => n[keyify(k)] = row[k]);
 
-  Papa.parse(url, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: result => {
-      rawData = result.data || [];
-      mappedData = rawData.map(mapRow).filter(r => r && (r.tarifa || r.proceso));
-      if(mappedData.length === 0){
-        statusEl.textContent = "No se encontraron registros.";
+    return {
+        origen: (n["tupa/tusne"] || n["origen"] || "").trim(),
+        unidad: (n["centro de costo"] || n["unidad responsable"] || "").trim(),
+        area: (n["área responsable de brindar el servicio"] || n["area"] || "").trim(),
+        proceso: (n["proceso"] || "").trim(),
+        tarifa: (n["tarifa"] || n["tarifas"] || "").trim(),
+        montoRaw: (n["monto"] || "").trim(),
+        monto: parseMonto(n["monto"]),
+        requisitos: (n["requisitos"] || "").trim(),
+        correo: (n["correo"] || "").trim(),
+        celular: (n["n° celular"] || n["celular"] || "").trim()
+    };
+}
+
+/* ========= CARGAR CSV ========= */
+function loadCSV() {
+    if (!CSV_URL) {
+        statusEl.textContent = "No se ha configurado la URL CSV.";
         return;
-      }
-      // Inicializar búsqueda Fuse si está disponible
-      if(typeof Fuse !== "undefined"){
-        fuse = new Fuse(mappedData, {
-          keys: [
-            {name: "proceso", weight: 0.9},
-            {name: "tarifa", weight: 0.8},
-            {name: "unidad", weight: 0.7},
-            {name: "area", weight: 0.5}
-          ],
-          threshold: 0.35
-        });
-      } else {
-        fuse = null;
-      }
-
-      initMontoRange();
-      populateFilters();
-      applyAllFilters();
-
-      statusEl.classList.add("hidden");
-    },
-    error: err => {
-      console.error("PapaParse error:", err);
-      statusEl.textContent = "Error cargando datos. Revisa consola.";
     }
-  });
+
+    statusEl.textContent = "Cargando datos...";
+
+    Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: res => {
+            rawData = res.data.map(r => mapRow(r))
+                .filter(r => r.proceso || r.tarifa);
+
+            if (!rawData.length) {
+                statusEl.textContent = "No se encontraron registros.";
+                return;
+            }
+
+            initFuse();
+            initFilters();
+            initMontoRange();
+            applyFilters();
+            statusEl.classList.add("hidden");
+        },
+        error: err => {
+            console.error(err);
+            statusEl.textContent = "Error cargando CSV.";
+        }
+    });
 }
 
-// Inicializar rango de monto y sliders
-function initMontoRange(){
-  const montos = mappedData.map(r => r.monto || 0);
-  const min = Math.min(...montos);
-  const max = Math.max(...montos);
-
-  const pad = Math.max(1, Math.round(max * 0.02));
-  const low = Math.max(0, Math.floor(min) - pad);
-  const high = Math.ceil(max) + pad;
-
-  minMontoInput.min = low;
-  minMontoInput.max = high;
-  maxMontoInput.min = low;
-  maxMontoInput.max = high;
-
-  minMontoInput.value = low;
-  maxMontoInput.value = high;
-
-  minMontoValue.textContent = low;
-  maxMontoValue.textContent = high;
-
-  // listeners
-  minMontoInput.addEventListener("input", onSliderChange);
-  maxMontoInput.addEventListener("input", onSliderChange);
+/* ========= FUSE (BÚSQUEDA DIFUSA) ========= */
+function initFuse() {
+    fuse = new Fuse(rawData, {
+        keys: [
+            { name: "proceso", weight: 0.9 },
+            { name: "tarifa", weight: 0.8 },
+            { name: "unidad", weight: 0.6 },
+            { name: "area", weight: 0.4 }
+        ],
+        threshold: 0.35
+    });
 }
 
-function onSliderChange(){
-  let a = Number(minMontoInput.value);
-  let b = Number(maxMontoInput.value);
-  if(a > b) [a,b] = [b,a];
-  minMontoValue.textContent = a;
-  maxMontoValue.textContent = b;
-  currentPage = 1;
-  applyAllFilters();
+/* ========= FILTROS ========= */
+function initFilters() {
+    const unidades = [...new Set(rawData.map(r => r.unidad).filter(Boolean))].sort();
+    const procesos = [...new Set(rawData.map(r => r.proceso).filter(Boolean))].sort();
+
+    unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
+    procesoFilter.innerHTML = `<option value="">Proceso</option>`;
+
+    unidades.forEach(u => unidadFilter.innerHTML += `<option>${u}</option>`);
+    procesos.forEach(p => procesoFilter.innerHTML += `<option>${p}</option>`);
+
+    unidadFilter.onchange = () => { currentPage = 1; applyFilters(); };
+    procesoFilter.onchange = () => { currentPage = 1; applyFilters(); };
 }
 
-// Poblar selects
-function populateFilters(){
-  // unidad and proceso unique sorted
-  const unidades = Array.from(new Set(mappedData.map(d => d.unidad).filter(Boolean))).sort();
-  const procesos = Array.from(new Set(mappedData.map(d => d.proceso).filter(Boolean))).sort();
+/* ========= SLIDER DE MONTO ========= */
+function initMontoRange() {
+    const valores = rawData.map(r => r.monto);
+    const min = Math.min(...valores);
+    const max = Math.max(...valores);
 
-  unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
-  procesoFilter.innerHTML = `<option value="">Proceso</option>`;
+    minMonto.min = maxMonto.min = Math.floor(min);
+    minMonto.max = maxMonto.max = Math.ceil(max);
 
-  unidades.forEach(u => {
-    const opt = document.createElement("option");
-    opt.value = u; opt.textContent = u;
-    unidadFilter.appendChild(opt);
-  });
-  procesos.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p; opt.textContent = p;
-    procesoFilter.appendChild(opt);
-  });
+    minMonto.value = minMonto.min;
+    maxMonto.value = maxMonto.max;
 
-  unidadFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
-  procesoFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
+    minMontoValue.textContent = minMonto.value;
+    maxMontoValue.textContent = maxMonto.value;
+
+    minMonto.oninput = updateMonto;
+    maxMonto.oninput = updateMonto;
 }
 
-// Aplica búsqueda + filtros + monto + orden + paginación
-function applyAllFilters(){
-  const q = (searchInput.value || "").trim();
-  const unidad = unidadFilter.value;
-  const proceso = procesoFilter.value;
-  const minV = Math.min(Number(minMontoInput.value), Number(maxMontoInput.value));
-  const maxV = Math.max(Number(minMontoInput.value), Number(maxMontoInput.value));
+function updateMonto() {
+    let v1 = Number(minMonto.value);
+    let v2 = Number(maxMonto.value);
 
-  let results = mappedData.slice();
+    if (v1 > v2) [v1, v2] = [v2, v1];
 
-  // Búsqueda con Fuse si disponible y si query >=2 chars
-  if(q.length >= 2 && fuse){
-    const res = fuse.search(q);
-    results = res.map(r => r.item);
-  } else if(q.length >= 2){
-    const ql = q.toLowerCase();
-    results = results.filter(r =>
-      (r.proceso || "").toLowerCase().includes(ql) ||
-      (r.tarifa || "").toLowerCase().includes(ql) ||
-      (r.unidad || "").toLowerCase().includes(ql) ||
-      (r.area || "").toLowerCase().includes(ql)
-    );
-  }
+    minMontoValue.textContent = v1;
+    maxMontoValue.textContent = v2;
 
-  // filtros
-  if(unidad) results = results.filter(r => r.unidad === unidad);
-  if(proceso) results = results.filter(r => r.proceso === proceso);
-
-  // monto
-  results = results.filter(r => (r.monto || 0) >= minV && (r.monto || 0) <= maxV);
-
-  // Orden: TUPA primero
-  results.sort((a,b) => {
-    const ao = ((a.origen||"") + "").toLowerCase();
-    const bo = ((b.origen||"") + "").toLowerCase();
-    if(ao === "tupa" && bo !== "tupa") return -1;
-    if(ao !== "tupa" && bo === "tupa") return 1;
-    return 0;
-  });
-
-  filteredData = results;
-  renderPage(1);
+    applyFilters();
 }
 
-// Render paginated page
-function renderPage(page){
-  currentPage = page;
-  const total = filteredData.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if(page < 1) page = 1;
-  if(page > totalPages) page = totalPages;
+/* ========= APLICAR FILTROS ========= */
+function applyFilters() {
+    let results = rawData.slice();
 
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const pageItems = filteredData.slice(start, end);
+    // búsqueda
+    const q = searchInput.value.trim();
+    if (q.length >= 2) {
+        results = fuse.search(q).map(r => r.item);
+    }
 
-  renderCards(pageItems, start);
-  renderPagination(totalPages, page);
-  // scroll to top of container
-  window.scrollTo({ top: document.querySelector(".container").offsetTop - 10, behavior: "smooth" });
-}
+    // unidad
+    if (unidadFilter.value)
+        results = results.filter(r => r.unidad === unidadFilter.value);
 
-// Render cards
-function renderCards(items, globalStartIndex = 0){
-  cardsContainer.innerHTML = "";
-  if(!items || items.length === 0){
-    cardsContainer.innerHTML = `<div class="status">No se encontraron resultados.</div>`;
-    return;
-  }
+    // proceso
+    if (procesoFilter.value)
+        results = results.filter(r => r.proceso === procesoFilter.value);
 
-  items.forEach((item, idx) => {
-    const div = document.createElement("div");
-    div.className = "card";
+    // monto
+    const minV = Number(minMontoValue.textContent);
+    const maxV = Number(maxMontoValue.textContent);
+    results = results.filter(r => r.monto >= minV && r.monto <= maxV);
 
-    // PROCESO as title, TARIFA and MONTO in meta
-    div.innerHTML = `
-      <div class="tag-origen">${escapeHTML(item.origen || "")}</div>
-      <div class="card-title">${escapeHTML(item.proceso || "—")}</div>
-
-      <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa || "—")}</div>
-      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML((item.monto || 0).toString())}</div>
-      <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad || "—")}</div>
-      <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area || "—")}</div>
-
-      <div class="actions">
-        <button class="btn btn-requisitos" data-item='${encodeURIComponent(JSON.stringify(item))}'><i class="bi bi-list-check"></i> Requisitos</button>
-        <a class="btn btn-mail" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.correo||"")}" target="_blank" rel="noopener noreferrer"><i class="bi bi-envelope-fill"></i> Correo</a>
-        <a class="btn btn-ws" href="https://wa.me/51${encodeURIComponent((item.celular||"").replace(/\D/g,""))}" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp"></i> WhatsApp</a>
-      </div>
-    `;
-
-    // attach listener for modal button
-    const reqBtn = div.querySelector(".btn-requisitos");
-    reqBtn.addEventListener("click", () => {
-      const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
-      openModal(it);
+    // ordenar TUPA primero
+    results.sort((a, b) => {
+        if (a.origen === "TUPA" && b.origen !== "TUPA") return -1;
+        if (a.origen !== "TUPA" && b.origen === "TUPA") return 1;
+        return 0;
     });
 
-    cardsContainer.appendChild(div);
-  });
+    filteredData = results;
+
+    renderPage(1);
 }
 
-// Render pagination UI
-function renderPagination(totalPages, current){
-  paginationEl.innerHTML = "";
-  if(totalPages <= 1) return;
+/* ========= RENDER CARDS ========= */
+function renderPage(page) {
+    currentPage = page;
 
-  const createBtn = (txt, cls, onClick) => {
-    const b = document.createElement("button");
-    b.className = cls || "page-btn";
-    b.textContent = txt;
-    b.addEventListener("click", onClick);
-    return b;
-  };
+    const total = filteredData.length;
+    const totalPages = Math.ceil(total / pageSize);
 
-  // first, prev
-  paginationEl.appendChild(createBtn("«", "page-btn", () => renderPage(1)));
-  paginationEl.appendChild(createBtn("‹", "page-btn", () => renderPage(Math.max(1, current-1))));
+    const start = (page - 1) * pageSize;
+    const items = filteredData.slice(start, start + pageSize);
 
-  const maxButtons = 7;
-  let start = Math.max(1, current - Math.floor(maxButtons/2));
-  let end = Math.min(totalPages, start + maxButtons - 1);
-  if(end - start < maxButtons -1){
-    start = Math.max(1, end - maxButtons + 1);
-  }
-
-  for(let p = start; p<=end; p++){
-    const cls = p === current ? "page-btn active" : "page-btn";
-    paginationEl.appendChild(createBtn(p, cls, () => renderPage(p)));
-  }
-
-  paginationEl.appendChild(createBtn("›", "page-btn", () => renderPage(Math.min(totalPages, current+1))));
-  paginationEl.appendChild(createBtn("»", "page-btn", () => renderPage(totalPages)));
+    renderCards(items);
+    renderPagination(totalPages, page);
 }
 
-// Modal open/close
+function renderCards(items) {
+    cardsContainer.innerHTML = "";
+
+    if (!items.length) {
+        cardsContainer.innerHTML = `<div class="status">Sin resultados.</div>`;
+        return;
+    }
+
+    items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = `
+            <div class="tag-origen">Origen: ${escapeHTML(item.origen)}</div>
+            <div class="card-title">${escapeHTML(item.proceso)}</div>
+
+            <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa)}</div>
+            <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad)}</div>
+            <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area)}</div>
+            <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(item.montoRaw)}</div>
+
+            <div class="actions">
+                <button class="btn btn-requisitos">
+                    <i class="bi bi-info-circle"></i> Requisitos
+                </button>
+
+                <a class="btn btn-mail" href="mailto:${item.correo}">
+                    <i class="bi bi-envelope-fill"></i> Correo
+                </a>
+
+                <a class="btn btn-ws" href="https://wa.me/51${item.celular.replace(/\D/g,'')}">
+                    <i class="bi bi-whatsapp"></i> WhatsApp
+                </a>
+            </div>
+        `;
+
+        div.querySelector(".btn-requisitos").onclick = () => openModal(item);
+
+        cardsContainer.appendChild(div);
+    });
+}
+
+/* ========= MODAL ========= */
 function openModal(item) {
+    modalTitle.textContent = item.proceso || "Detalle";
 
-    document.getElementById("modalTitle").textContent = item.Proceso;
+    // requisitos listados como viñetas
+    const reqs = item.requisitos.split(/\n|;|\r/).filter(t => t.trim());
 
-    // Requisitos como lista con viñetas
-    const reqHTML = item.Requisitos
-        ? "<ul>" + item.Requisitos.split("\n")
-            .map(r => `<li>${r.trim()}</li>`)
-            .join("") + "</ul>"
-        : "No registra requisitos.";
+    modalRequisitos.innerHTML = `
+        <ul>${reqs.map(r => `<li>${escapeHTML(r)}</li>`).join("")}</ul>
+    `;
 
-    document.getElementById("modalRequisitos").innerHTML = reqHTML;
+    modalUnidad.textContent = item.unidad || "—";
+    modalArea.textContent = item.area || "—";
 
-    // Unidad
-    document.getElementById("modalUnidad").textContent = item.Unidad || "—";
+    modalCorreo.innerHTML = `<a href="mailto:${item.correo}">${item.correo || "—"}</a>`;
+    modalTelefono.innerHTML = `<a href="https://wa.me/51${item.celular.replace(/\D/g,'')}" target="_blank">${item.celular || "—"}</a>`;
 
-    // Área
-    document.getElementById("modalArea").textContent = item.Area || item.Unidad || "—";
-
-    // Correo clickeable
-    document.getElementById("modalCorreo").innerHTML = 
-        item.Correo ? `<a href="mailto:${item.Correo}">${item.Correo}</a>` : "—";
-
-    // Teléfono clickeable (WhatsApp)
-    document.getElementById("modalTelefono").innerHTML =
-        item.Telefono ? `<a target="_blank" href="https://wa.me/51${item.Telefono.replace(/[^0-9]/g,'')}">${item.Telefono}</a>` : "—";
-
-    document.getElementById("modalOverlay").classList.remove("hidden");
+    modalOverlay.classList.remove("hidden");
 }
 
 function closeModal() {
-    document.getElementById("modalOverlay").classList.add("hidden");
+    modalOverlay.classList.add("hidden");
 }
 
-  modalRequisitos.appendChild(ul);
+modalOverlay.addEventListener("click", e => {
+    if (e.target === modalOverlay) closeModal();
+});
 
-  modalUnidad.textContent = item.unidad || "—";
-  modalArea.textContent = item.area || "—";
-  modalCorreo.textContent = item.correo || "—";
-  modalTelefono.textContent = item.celular || "—";
-  modalOverlay.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-}
+/* ========= BUSCADOR ========= */
+searchInput.oninput = () => {
+    currentPage = 1;
+    applyFilters();
+};
 
-function closeModal(){
-  modalOverlay.classList.add("hidden");
-  document.body.style.overflow = "";
-}
-
-// close handlers
-if(modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
-
-// search + inputs handlers
-searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
-minMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
-maxMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
-
-// start
-if(!CSV_URL){
-  statusEl.textContent = "No se ha configurado la URL del CSV.";
-} else {
-  loadCSV(CSV_URL);
-}
+/* ========= INICIAR ========= */
+loadCSV();
