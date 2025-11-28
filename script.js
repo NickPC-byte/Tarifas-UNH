@@ -330,25 +330,40 @@ function renderPagination(totalPages, current){
 }
 
 // Modal open/close
-function openModal(item){
-  // title: tarifa (you earlier wanted tarifa in modal title) - keep tarifa as title
-  modalTitle.textContent = item.tarifa || item.proceso || "Detalle";
+function openModal(item) {
 
-  // Requisitos -> list
-  let text = item.requisitos || "No especificado";
-  let parts = [];
-  if(text.indexOf("\n") >= 0) parts = text.split(/\n+/);
-  else if(text.indexOf(";") >= 0) parts = text.split(/\s*;\s*/);
-  else if(text.indexOf(".") >= 0 && text.length > 40) parts = text.split(/\.\s+/).filter(Boolean);
-  else parts = [text];
+    document.getElementById("modalTitle").textContent = item.Proceso;
 
-  modalRequisitos.innerHTML = "";
-  const ul = document.createElement("ul");
-  parts.forEach(p => {
-    const li = document.createElement("li");
-    li.textContent = p.trim();
-    ul.appendChild(li);
-  });
+    // Requisitos como lista con viñetas
+    const reqHTML = item.Requisitos
+        ? "<ul>" + item.Requisitos.split("\n")
+            .map(r => `<li>${r.trim()}</li>`)
+            .join("") + "</ul>"
+        : "No registra requisitos.";
+
+    document.getElementById("modalRequisitos").innerHTML = reqHTML;
+
+    // Unidad
+    document.getElementById("modalUnidad").textContent = item.Unidad || "—";
+
+    // Área
+    document.getElementById("modalArea").textContent = item.Area || item.Unidad || "—";
+
+    // Correo clickeable
+    document.getElementById("modalCorreo").innerHTML = 
+        item.Correo ? `<a href="mailto:${item.Correo}">${item.Correo}</a>` : "—";
+
+    // Teléfono clickeable (WhatsApp)
+    document.getElementById("modalTelefono").innerHTML =
+        item.Telefono ? `<a target="_blank" href="https://wa.me/51${item.Telefono.replace(/[^0-9]/g,'')}">${item.Telefono}</a>` : "—";
+
+    document.getElementById("modalOverlay").classList.remove("hidden");
+}
+
+function closeModal() {
+    document.getElementById("modalOverlay").classList.add("hidden");
+}
+
   modalRequisitos.appendChild(ul);
 
   modalUnidad.textContent = item.unidad || "—";
