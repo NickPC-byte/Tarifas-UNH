@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tarifario TUPA / TUSNE - UNH</title>
 
-  <!-- Tipografía elegante -->
+  <!-- Tipografía -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
   <!-- CSS -->
   <link rel="stylesheet" href="style.css">
 
-  <!-- Librerías externas -->
+  <!-- Librerías: PapaParse y Fuse (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js"></script>
 </head>
@@ -20,43 +23,75 @@
   <header class="site-header">
     <div class="site-title">
       <h1>Tarifario TUPA / TUSNE — UNH</h1>
-      <p class="subtitle">Buscador interactivo de tarifas, requisitos y contactos.</p>
+      <p class="subtitle">Buscador interactivo de tarifas, requisitos y contactos</p>
     </div>
   </header>
 
   <main class="container">
 
     <section class="controls">
-      <div class="left-controls">
+      <div class="search-wrap">
         <input id="searchInput" type="search" placeholder="Buscar (tarifa, proceso, unidad, área)..." />
       </div>
 
-      <div class="right-controls">
-        <select id="unidadFilter"><option value="">Unidad Responsable</option></select>
-        <select id="procesoFilter"><option value="">Proceso</option></select>
+      <div class="filters-wrap">
+        <select id="unidadFilter" class="filter-select">
+          <option value="">Unidad Responsable</option>
+        </select>
+
+        <select id="procesoFilter" class="filter-select">
+          <option value="">Proceso</option>
+        </select>
+
+        <div class="monto-filter">
+          <label class="monto-label">Monto (S/)</label>
+          <div class="slider-wrap">
+            <input type="range" id="minSlider" />
+            <input type="range" id="maxSlider" />
+          </div>
+          <div class="monto-values">
+            <span id="minValue">0</span>
+            <span id="maxValue">0</span>
+          </div>
+        </div>
       </div>
     </section>
 
     <div id="status" class="status">Cargando datos…</div>
-    <div id="cards" class="cards"></div>
+
+    <section id="cardsArea" class="cards-area">
+      <div id="cards" class="cards"></div>
+    </section>
+
+    <nav id="pagination" class="pagination"></nav>
+
   </main>
 
-  <!-- Modal requisitos -->
+  <!-- Modal (Requisitos + Unidad + Área + Contacto) -->
   <div id="modalOverlay" class="modal-overlay hidden">
     <div class="modal">
-      <button id="modalClose" class="modal-close">✕</button>
+      <button id="modalClose" class="modal-close" aria-label="Cerrar">✕</button>
       <h2>REQUISITOS</h2>
-      <div id="modalContent" class="modal-content"></div>
+      <div id="modalBody" class="modal-body"></div>
+
+      <div class="modal-meta">
+        <p><strong>Unidad Responsable:</strong> <span id="modalUnidad"></span></p>
+        <p><strong>Área encargada:</strong> <span id="modalArea"></span></p>
+        <p><strong>Contacto:</strong>
+          <a id="modalCorreo" href="#" target="_blank" rel="noopener noreferrer"><i class="bi bi-envelope-fill"></i> Correo</a>
+          &nbsp;|&nbsp;
+          <a id="modalWhats" href="#" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+        </p>
+      </div>
     </div>
   </div>
 
-  <!-- Config: CSV public -->
+  <!-- Config: CSV público (tu URL ya incluida) -->
   <script>
-    // URL CSV publicada (tuya)
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
   </script>
 
-  <!-- Lógica principal -->
+  <!-- Script principal -->
   <script src="script.js"></script>
 </body>
 </html>
