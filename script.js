@@ -1,104 +1,107 @@
+const unidadFilter = document.getElementById("unidadFilter");
+const procesoFilter = document.getElementById("procesoFilter");
+const cardsContainer = document.getElementById("cardsContainer");
+const loading = document.getElementById("loading");
+const errorBox = document.getElementById("error");
+
 let data = [];
 
-/* ----------------------
-   Cargar datos del CSV
----------------------- */
-async function loadData() {
-    const response = await fetch(SHEET_CSV_URL);
-    const text = await response.text();
+// Función para leer CSV
+async function loadCSV() {
+    try {
+        const response = await fetch(SHEET_CSV_URL);
+        if (!response.ok) throw new Error("No se pudo cargar el CSV");
 
-    const rows = text.split("\n").map(r => r.split(","));
-
-    const headers = rows[0];
-    const items = rows.slice(1);
-
-    data = items.map(row => ({
-        origen: row[0],
-        unidad: row[1],
-        cxc: row[2],
-        area: row[3],
-        proceso: row[4],
-        tarifa: row[5],
-        monto: row[6],
-        requisitos: row[7],
-        correo: row[8],
-        celular: row[9]
-    }));
-
-    buildFilters();
-    render(data);
+        const csvText = await response.text();
+        parseCSV(csvText);
+        loading.classList.add("hidden");
+    } catch (err) {
+        loading.classList.add("hidden");
+        errorBox.classList.remove("hidden");
+        console.error(err);
+    }
 }
 
-/* ----------------------
-   Construcción de filtros
----------------------- */
-function buildFilters() {
-    const unidadSelect = document.getElementById("unidadFilter");
-    const procesoSelect = document.getElementById("procesoFilter");
+function parseCSV(csv) {
+    const rows = csv.split("\n").map(r => r.split(","));
+    const headers = rows.shift();
 
-    unidadSelect.innerHTML = `<option value="">Unidad Responsable</option>`;
-    procesoSelect.innerHTML = `<option value="">Proceso</option>`;
-
-    [...new Set(data.map(i => i.unidad))].forEach(u => {
-        unidadSelect.innerHTML += `<option value="${u}">${u}</option>`;
+    data = rows.map(cols => {
+        return {
+            origen: cols[0],
+            unidad: cols[1],
+            cxc: cols[2],
+            area: cols[3],
+            proceso: cols[4],
+            tarifa: cols[5],
+            monto: cols[6],
+            requisitos: cols[7],
+            correo: cols[8],
+            celular: cols[9]
+        };
     });
 
-    [...new Set(data.map(i => i.proceso))].forEach(p => {
-        procesoSelect.innerHTML += `<option value="${p}">${p}</option>`;
+    loadFilters();
+    renderCards();
+}
+
+function loadFilters() {
+    const unidades = [...new Set(data.map(d => d.unidad))].sort();
+    const procesos = [...new Set(data.map(d => d.proceso))].sort();
+
+    unidades.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u;
+        opt.textContent = u;
+        unidadFilter.appendChild(opt);
     });
 
-    unidadSelect.addEventListener("change", applyFilters);
-    procesoSelect.addEventListener("change", applyFilters);
-    document.getElementById("search").addEventListener("keyup", applyFilters);
+    procesos.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        procesoFilter.appendChild(opt);
+    });
+
+    unidadFilter.addEventListener("change", renderCards);
+    procesoFilter.addEventListener("change", renderCards);
 }
 
-/* ----------------------
-   Aplicar filtros
----------------------- */
-function applyFilters() {
-    const s = document.getElementById("search").value.toLowerCase();
-    const unidad = document.getElementById("unidadFilter").value;
-    const proceso = document.getElementById("procesoFilter").value;
+function renderCards() {
+    cardsContainer.innerHTML = "";
 
-    const filtered = data.filter(i =>
-        i.tarifa.toLowerCase().includes(s) &&
-        (unidad === "" || i.unidad === unidad) &&
-        (proceso === "" || i.proceso === proceso)
-    );
+    let filtered = data;
 
-    render(filtered);
-}
+    if (unidadFilter.value) {
+        filtered = filtered.filter(d => d.unidad === unidadFilter.value);
+    }
 
-/* ----------------------
-      Mostrar resultados
----------------------- */
-function render(items) {
-    const cont = document.getElementById("results");
-    cont.innerHTML = "";
+    if (procesoFilter.value) {
+        filtered = filtered.filter(d => d.proceso === procesoFilter.value);
+    }
 
-    items.forEach(i => {
-        cont.innerHTML += `
-        <div class="card">
-            <span class="tag">Origen: ${i.origen}</span>
-            <h3>${i.tarifa}</h3>
-            <p><b>Unidad Responsable:</b> ${i.unidad}</p>
-            <p><b>Área:</b> ${i.area}</p>
-            <p><b>Proceso:</b> ${i.proceso}</p>
-            <p><b>Monto:</b> S/ ${i.monto}</p>
+    filtered.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
 
-            <button onclick="alert('Requisitos:\\n\\n${i.requisitos}')">
-                Ver requisitos
-            </button>
+        card.innerHTML = `
+            <div class="tag">Origen: ${item.origen}</div>
+            <div class="card-title">${item.tarifa}</div>
 
-            <button onclick="window.location.href='mailto:${i.correo}'">
-                Enviar correo
-            </button>
+            <p><strong>Unidad Responsable:</strong> ${item.unidad}</p>
+            <p><strong>Área:</strong> ${item.area}</p>
+            <p><strong>Proceso:</strong> ${item.proceso}</p>
+            <p><strong>Monto:</strong> S/ ${item.monto}</p>
+            <p><strong>Requisitos:</strong> ${item.requisitos}</p>
 
-            <button onclick="window.location.href='https://wa.me/51${i.celular}'">
-                WhatsApp
-            </button>
-        </div>`;
+            <p><strong>Correo:</strong> <a href="mailto:${item.correo}">${item.correo}</a></p>
+            <p><strong>Celular:</strong> <a href="https://wa.me/51${item.celular}" target="_blank">
+                ${item.celular}
+            </a></p>
+        `;
+
+        cardsContainer.appendChild(card);
     });
 }
 
-loadData();
+loadCSV();
