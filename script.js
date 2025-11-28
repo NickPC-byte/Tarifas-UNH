@@ -1,31 +1,20 @@
-/* ============================================================
-   Script avanzado — Tarifario TUPA/TUSNE
-   Incluye:
-   - PapaParse (CSV)
-   - Fuse.js (búsqueda difusa)
-   - Cards con PROCESO como título
-   - Modal elegante con requisitos + unidad + área + contacto
-   - Paginación (21 por página)
-   - Filtro por monto (slider doble)
-   - Orden TUPA primero
-   ============================================================ */
+/* SCRIPT ACTUALIZADO — MODAL FIJO + PROCESO COMO TÍTULO */
 
-/* ========= CONFIG ========= */
-const CSV_URL = typeof SHEET_CSV_URL !== "undefined" ? SHEET_CSV_URL : "";
+const CSV_URL = SHEET_CSV_URL;
 
-/* ========= ELEMENTOS ========= */
+// Elementos
 const searchInput = document.getElementById("searchInput");
 const unidadFilter = document.getElementById("unidadFilter");
 const procesoFilter = document.getElementById("procesoFilter");
+const cardsContainer = document.getElementById("cardsContainer");
+const statusEl = document.getElementById("status");
+const paginationEl = document.getElementById("pagination");
 
+// Sliders
 const minMonto = document.getElementById("minMonto");
 const maxMonto = document.getElementById("maxMonto");
 const minMontoValue = document.getElementById("minMontoValue");
 const maxMontoValue = document.getElementById("maxMontoValue");
-
-const cardsContainer = document.getElementById("cardsContainer");
-const statusEl = document.getElementById("status");
-const paginationEl = document.getElementById("pagination");
 
 // Modal
 const modalOverlay = document.getElementById("modalOverlay");
@@ -37,274 +26,233 @@ const modalTelefono = document.getElementById("modalTelefono");
 const modalRequisitos = document.getElementById("modalRequisitos");
 
 let rawData = [];
-let filteredData = [];
 let fuse;
+let filteredData = [];
+let pageSize = 21;
 let currentPage = 1;
-const pageSize = 21;
 
-/* ========= UTILIDADES ========= */
-function keyify(s) {
-    return s ? s.toString().trim().toLowerCase().replace(/\s+/g, " ") : "";
+/* UTILIDADES */
+function escapeHTML(s){
+  return s ? s.replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'
+  }[c])) : "";
 }
 
-function escapeHTML(s) {
-    if (!s) return "";
-    return s.replace(/[&<>"']/g, m => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    }[m]));
+function parseMonto(v){
+  if(!v) return 0;
+  return Number(v.toString().replace(/[^\d.]/g,"")) || 0;
 }
 
-function parseMonto(v) {
-    if (!v) return 0;
-    let s = v.toString().replace(/\s/g, "");
-    s = s.replace(/S\/|s\/|soles|sol/gi, "");
-    s = s.replace(/,/g, ".");
-    s = s.replace(/[^0-9.]/g, "");
-    const n = parseFloat(s);
-    return isNaN(n) ? 0 : n;
+/* MAPEO DE FILA CSV */
+function mapRow(r){
+  return {
+    origen: r["TUPA/TUSNE"]?.trim() || "",
+    unidad: r["Centro de Costo"]?.trim() || "",
+    area: r["Área responsable de brindar el servicio"]?.trim() || r["Centro de Costo"],
+    proceso: r["Proceso"]?.trim() || "",
+    tarifa: r["Tarifas"]?.trim() || "",
+    montoRaw: r["Monto"]?.trim() || "0",
+    monto: parseMonto(r["Monto"]),
+    requisitos: r["Requisitos generales"]?.trim() || "",
+    correo: r["Correo"]?.trim() || "",
+    celular: (r["N° Celular"] || "").toString().replace(/\D/g,"")
+  };
 }
 
-/* ========= MAPEO DE FILAS ========= */
-function mapRow(row) {
-    const n = {};
-    Object.keys(row).forEach(k => n[keyify(k)] = row[k]);
+/* CARGA CSV */
+Papa.parse(CSV_URL, {
+  download:true,
+  header:true,
+  skipEmptyLines:true,
+  complete: res => {
+    rawData = res.data.map(mapRow);
 
-    return {
-        origen: (n["tupa/tusne"] || n["origen"] || "").trim(),
-        unidad: (n["centro de costo"] || n["unidad responsable"] || "").trim(),
-        area: (n["área responsable de brindar el servicio"] || n["area"] || "").trim(),
-        proceso: (n["proceso"] || "").trim(),
-        tarifa: (n["tarifa"] || n["tarifas"] || "").trim(),
-        montoRaw: (n["monto"] || "").trim(),
-        monto: parseMonto(n["monto"]),
-        requisitos: (n["requisitos"] || "").trim(),
-        correo: (n["correo"] || "").trim(),
-        celular: (n["n° celular"] || n["celular"] || "").trim()
-    };
-}
-
-/* ========= CARGAR CSV ========= */
-function loadCSV() {
-    if (!CSV_URL) {
-        statusEl.textContent = "No se ha configurado la URL CSV.";
-        return;
-    }
-
-    statusEl.textContent = "Cargando datos...";
-
-    Papa.parse(CSV_URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: res => {
-            rawData = res.data.map(r => mapRow(r))
-                .filter(r => r.proceso || r.tarifa);
-
-            if (!rawData.length) {
-                statusEl.textContent = "No se encontraron registros.";
-                return;
-            }
-
-            initFuse();
-            initFilters();
-            initMontoRange();
-            applyFilters();
-            statusEl.classList.add("hidden");
-        },
-        error: err => {
-            console.error(err);
-            statusEl.textContent = "Error cargando CSV.";
-        }
-    });
-}
-
-/* ========= FUSE (BÚSQUEDA DIFUSA) ========= */
-function initFuse() {
-    fuse = new Fuse(rawData, {
-        keys: [
-            { name: "proceso", weight: 0.9 },
-            { name: "tarifa", weight: 0.8 },
-            { name: "unidad", weight: 0.6 },
-            { name: "area", weight: 0.4 }
-        ],
-        threshold: 0.35
-    });
-}
-
-/* ========= FILTROS ========= */
-function initFilters() {
-    const unidades = [...new Set(rawData.map(r => r.unidad).filter(Boolean))].sort();
-    const procesos = [...new Set(rawData.map(r => r.proceso).filter(Boolean))].sort();
-
-    unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
-    procesoFilter.innerHTML = `<option value="">Proceso</option>`;
-
-    unidades.forEach(u => unidadFilter.innerHTML += `<option>${u}</option>`);
-    procesos.forEach(p => procesoFilter.innerHTML += `<option>${p}</option>`);
-
-    unidadFilter.onchange = () => { currentPage = 1; applyFilters(); };
-    procesoFilter.onchange = () => { currentPage = 1; applyFilters(); };
-}
-
-/* ========= SLIDER DE MONTO ========= */
-function initMontoRange() {
-    const valores = rawData.map(r => r.monto);
-    const min = Math.min(...valores);
-    const max = Math.max(...valores);
-
-    minMonto.min = maxMonto.min = Math.floor(min);
-    minMonto.max = maxMonto.max = Math.ceil(max);
-
-    minMonto.value = minMonto.min;
-    maxMonto.value = maxMonto.max;
-
-    minMontoValue.textContent = minMonto.value;
-    maxMontoValue.textContent = maxMonto.value;
-
-    minMonto.oninput = updateMonto;
-    maxMonto.oninput = updateMonto;
-}
-
-function updateMonto() {
-    let v1 = Number(minMonto.value);
-    let v2 = Number(maxMonto.value);
-
-    if (v1 > v2) [v1, v2] = [v2, v1];
-
-    minMontoValue.textContent = v1;
-    maxMontoValue.textContent = v2;
-
-    applyFilters();
-}
-
-/* ========= APLICAR FILTROS ========= */
-function applyFilters() {
-    let results = rawData.slice();
-
-    // búsqueda
-    const q = searchInput.value.trim();
-    if (q.length >= 2) {
-        results = fuse.search(q).map(r => r.item);
-    }
-
-    // unidad
-    if (unidadFilter.value)
-        results = results.filter(r => r.unidad === unidadFilter.value);
-
-    // proceso
-    if (procesoFilter.value)
-        results = results.filter(r => r.proceso === procesoFilter.value);
-
-    // monto
-    const minV = Number(minMontoValue.textContent);
-    const maxV = Number(maxMontoValue.textContent);
-    results = results.filter(r => r.monto >= minV && r.monto <= maxV);
-
-    // ordenar TUPA primero
-    results.sort((a, b) => {
-        if (a.origen === "TUPA" && b.origen !== "TUPA") return -1;
-        if (a.origen !== "TUPA" && b.origen === "TUPA") return 1;
-        return 0;
-    });
-
-    filteredData = results;
-
-    renderPage(1);
-}
-
-/* ========= RENDER CARDS ========= */
-function renderPage(page) {
-    currentPage = page;
-
-    const total = filteredData.length;
-    const totalPages = Math.ceil(total / pageSize);
-
-    const start = (page - 1) * pageSize;
-    const items = filteredData.slice(start, start + pageSize);
-
-    renderCards(items);
-    renderPagination(totalPages, page);
-}
-
-function renderCards(items) {
-    cardsContainer.innerHTML = "";
-
-    if (!items.length) {
-        cardsContainer.innerHTML = `<div class="status">Sin resultados.</div>`;
-        return;
-    }
-
-    items.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <div class="tag-origen">Origen: ${escapeHTML(item.origen)}</div>
-            <div class="card-title">${escapeHTML(item.proceso)}</div>
-
-            <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa)}</div>
-            <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad)}</div>
-            <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area)}</div>
-            <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(item.montoRaw)}</div>
-
-            <div class="actions">
-                <button class="btn btn-requisitos">
-                    <i class="bi bi-info-circle"></i> Requisitos
-                </button>
-
-                <a class="btn btn-mail" href="mailto:${item.correo}">
-                    <i class="bi bi-envelope-fill"></i> Correo
-                </a>
-
-                <a class="btn btn-ws" href="https://wa.me/51${item.celular.replace(/\D/g,'')}">
-                    <i class="bi bi-whatsapp"></i> WhatsApp
-                </a>
-            </div>
-        `;
-
-        div.querySelector(".btn-requisitos").onclick = () => openModal(item);
-
-        cardsContainer.appendChild(div);
-    });
-}
-
-/* ========= MODAL ========= */
-function openModal(item) {
-    modalTitle.textContent = item.proceso || "Detalle";
-
-    // requisitos listados como viñetas
-    const reqs = item.requisitos.split(/\n|;|\r/).filter(t => t.trim());
-
-    modalRequisitos.innerHTML = `
-        <ul>${reqs.map(r => `<li>${escapeHTML(r)}</li>`).join("")}</ul>
-    `;
-
-    modalUnidad.textContent = item.unidad || "—";
-    modalArea.textContent = item.area || "—";
-
-    modalCorreo.innerHTML = `<a href="mailto:${item.correo}">${item.correo || "—"}</a>`;
-    modalTelefono.innerHTML = `<a href="https://wa.me/51${item.celular.replace(/\D/g,'')}" target="_blank">${item.celular || "—"}</a>`;
-
-    modalOverlay.classList.remove("hidden");
-}
-
-function closeModal() {
-    modalOverlay.classList.add("hidden");
-}
-
-modalOverlay.addEventListener("click", e => {
-    if (e.target === modalOverlay) closeModal();
+    initFuse();
+    initFilters();
+    initSliderBounds();
+    applyAllFilters();
+  }
 });
 
-/* ========= BUSCADOR ========= */
-searchInput.oninput = () => {
-    currentPage = 1;
-    applyFilters();
-};
+/* FUSE PARA BÚSQUEDA */
+function initFuse(){
+  fuse = new Fuse(rawData,{
+    keys:["tarifa","proceso","unidad","area"],
+    threshold:0.33
+  });
+}
 
-/* ========= INICIAR ========= */
-loadCSV();
+/* SELECTS */
+function initFilters(){
+  const unidades = [...new Set(rawData.map(r=>r.unidad))].sort();
+  const procesos = [...new Set(rawData.map(r=>r.proceso))].sort();
+
+  unidades.forEach(u=>{
+    const o=document.createElement("option");
+    o.value=u; o.textContent=u;
+    unidadFilter.appendChild(o);
+  });
+
+  procesos.forEach(p=>{
+    const o=document.createElement("option");
+    o.value=p; o.textContent=p;
+    procesoFilter.appendChild(o);
+  });
+
+  unidadFilter.onchange = applyAllFilters;
+  procesoFilter.onchange = applyAllFilters;
+  searchInput.oninput = applyAllFilters;
+}
+
+/* SLIDER */
+function initSliderBounds(){
+  const montos = rawData.map(r=>r.monto);
+  const min = Math.min(...montos);
+  const max = Math.max(...montos);
+
+  minMonto.min = minMontoValue.textContent = min;
+  minMonto.max = maxMonto.max = max;
+  maxMonto.min = min;
+  maxMonto.value = max;
+  maxMontoValue.textContent = max;
+
+  minMonto.oninput = updateSlider;
+  maxMonto.oninput = updateSlider;
+}
+
+function updateSlider(){
+  let v1 = Number(minMonto.value);
+  let v2 = Number(maxMonto.value);
+
+  if(v1>v2){ [v1,v2]=[v2,v1]; }
+
+  minMontoValue.textContent = v1;
+  maxMontoValue.textContent = v2;
+
+  applyAllFilters();
+}
+
+/* APLICAR FILTROS */
+function applyAllFilters(){
+  let data = rawData.slice();
+  let query = searchInput.value.trim();
+
+  if(query.length>=2){
+    data = fuse.search(query).map(r=>r.item);
+  }
+
+  if(unidadFilter.value){
+    data = data.filter(r => r.unidad===unidadFilter.value);
+  }
+  
+  if(procesoFilter.value){
+    data = data.filter(r => r.proceso===procesoFilter.value);
+  }
+
+  // monto
+  const v1 = Number(minMonto.value);
+  const v2 = Number(maxMonto.value);
+  data = data.filter(r => r.monto >= v1 && r.monto <= v2);
+
+  // Order TUPA primero
+  data.sort((a,b)=>{
+    if(a.origen==="TUPA" && b.origen!=="TUPA") return -1;
+    if(a.origen!=="TUPA" && b.origen==="TUPA") return 1;
+    return 0;
+  });
+
+  filteredData = data;
+  renderPage(1);
+}
+
+/* PAGINACIÓN */
+function renderPage(p){
+  currentPage = p;
+  const totalPages = Math.ceil(filteredData.length/pageSize);
+  const start = (p-1)*pageSize;
+  const items = filteredData.slice(start,start+pageSize);
+
+  renderCards(items);
+  renderPagination(totalPages);
+}
+
+/* TARJETAS */
+function renderCards(items){
+  cardsContainer.innerHTML="";
+
+  items.forEach(item=>{
+    const card=document.createElement("div");
+    card.className="card";
+
+    card.innerHTML = `
+      <div class="tag-origen">Origen: ${item.origen}</div>
+
+      <div class="card-title">${escapeHTML(item.proceso)}</div>
+
+      <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa)}</div>
+      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(item.montoRaw)}</div>
+      <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad)}</div>
+      <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area)}</div>
+
+      <div class="actions">
+        <button class="btn btn-requisitos"><i class="bi bi-info-circle"></i> Requisitos</button>
+        <a class="btn btn-mail" target="_blank" href="https://mail.google.com/mail/?view=cm&to=${item.correo}">
+          <i class="bi bi-envelope-fill"></i> Correo
+        </a>
+        <a class="btn btn-ws" target="_blank" href="https://wa.me/51${item.celular}">
+          <i class="bi bi-whatsapp"></i> WhatsApp
+        </a>
+      </div>
+    `;
+
+    // abrir modal
+    card.querySelector(".btn-requisitos").onclick = () => openModal(item);
+
+    cardsContainer.appendChild(card);
+  });
+}
+
+/* PAGINACIÓN */
+function renderPagination(total){
+  paginationEl.innerHTML="";
+  if(total<=1) return;
+
+  for(let i=1;i<=total;i++){
+    const b=document.createElement("button");
+    b.className="page-btn";
+    if(i===currentPage) b.classList.add("active");
+    b.textContent=i;
+    b.onclick=()=>renderPage(i);
+    paginationEl.appendChild(b);
+  }
+}
+
+/* MODAL */
+function openModal(item){
+  modalTitle.textContent = item.proceso.toUpperCase();
+
+  modalUnidad.textContent = item.unidad;
+  modalArea.textContent = item.area;
+
+  modalCorreo.innerHTML = item.correo
+    ? `<a href="https://mail.google.com/mail/?view=cm&to=${item.correo}" target="_blank">${item.correo}</a>`
+    : "—";
+
+  modalTelefono.innerHTML = item.celular
+    ? `<a href="https://wa.me/51${item.celular}" target="_blank">${item.celular}</a>`
+    : "—";
+
+  // requisitos → lista
+  const reqs = item.requisitos.split(/[\n;]+/).map(r=>r.trim()).filter(Boolean);
+  modalRequisitos.innerHTML = "<ul>" + reqs.map(r=>`<li>${escapeHTML(r)}</li>`).join("") + "</ul>";
+
+  modalOverlay.classList.remove("hidden");
+  document.body.style.overflow="hidden";
+}
+
+function closeModal(){
+  modalOverlay.classList.add("hidden");
+  document.body.style.overflow="";
+}
+
+window.closeModal = closeModal;
