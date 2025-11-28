@@ -1,151 +1,251 @@
-// script.js
-// Lee CSV (PapaParse), busca (Fuse.js) y renderiza cards + modal de requisitos
+/* Advanced widget script:
+   - PapaParse CSV parsing
+   - Fuse.js fuzzy search
+   - double-range slider for monto
+   - pagination (21 per page)
+   - modal with requisitos + unidad + area + contactos
+   - TUPA-first ordering
+*/
 
-const SEARCH_INPUT = document.getElementById("searchInput");
-const UNIDAD_SELECT = document.getElementById("unidadFilter");
-const PROCESO_SELECT = document.getElementById("procesoFilter");
-const CARDS = document.getElementById("cards");
-const STATUS = document.getElementById("status");
+const CSV_URL = typeof SHEET_CSV_URL !== "undefined" ? SHEET_CSV_URL : "";
 
-const MODAL_OVERLAY = document.getElementById("modalOverlay");
-const MODAL_CONTENT = document.getElementById("modalContent");
-const MODAL_CLOSE = document.getElementById("modalClose");
+const searchInput = document.getElementById("searchInput");
+const unidadFilter = document.getElementById("unidadFilter");
+const procesoFilter = document.getElementById("procesoFilter");
+const cardsContainer = document.getElementById("cards");
+const statusEl = document.getElementById("status");
+const paginationEl = document.getElementById("pagination");
 
-let rawData = [];   // array de objetos
-let fuse = null;    // instancia Fuse
-let fuseOptions = {
-  keys: [
-    { name: "tarifa", weight: 0.9 },
-    { name: "proceso", weight: 0.8 },
-    { name: "unidad", weight: 0.8 },
-    { name: "area", weight: 0.6 },
-    { name: "origen", weight: 0.5 }
-  ],
-  threshold: 0.35,
-  minMatchCharLength: 2
-};
+const minSlider = document.getElementById("minSlider");
+const maxSlider = document.getElementById("maxSlider");
+const minValueEl = document.getElementById("minValue");
+const maxValueEl = document.getElementById("maxValue");
 
-// UTIL: normaliza encabezados y campos
-function normalizeFieldName(s){
-  return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : "";
+// Modal elements
+const modalOverlay = document.getElementById("modalOverlay");
+const modalBody = document.getElementById("modalBody");
+const modalUnidad = document.getElementById("modalUnidad");
+const modalArea = document.getElementById("modalArea");
+const modalCorreo = document.getElementById("modalCorreo");
+const modalWhats = document.getElementById("modalWhats");
+const modalClose = document.getElementById("modalClose");
+
+let rawData = [];       // mapped rows
+let fuse = null;
+let pageSize = 21;      // 21 cards / page
+let currentPage = 1;
+let filteredData = [];
+let montoMin = 0, montoMax = 0;
+
+// Util: normalize header keys
+function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
+
+// Parse monto to number (strip currency text)
+function parseMonto(v){
+  if(!v) return 0;
+  // Remove non-digit, non-dot, non-comma. Replace comma with dot if necessary
+  let s = v.toString().replace(/\s/g, "");
+  s = s.replace(/S\/|s\/|soles|sol|S/gi, "");
+  s = s.replace(/\./g, function(m, idx, str){
+    // Heuristic: if there are more than one dot, keep last as decimal - but simpler: remove thousand separators (.) and keep last dot if any
+    return ".";
+  });
+  // Replace commas with dot if there is no dot
+  s = s.replace(/,/g, ".");
+  // Remove any character except digits and dot
+  s = s.replace(/[^0-9.]/g,"");
+  // If multiple dots, keep last
+  const parts = s.split(".");
+  if(parts.length>2){
+    const dec = parts.pop();
+    s = parts.join("") + "." + dec;
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
 }
 
-// Cargar CSV con PapaParse
-function loadDataFromCSV(url){
-  STATUS.textContent = "Cargando datos desde Google Sheets...";
+// Map CSV row object to our model (robust to header names)
+function mapRow(row){
+  const mapped = {};
+  const normalized = {};
+  Object.keys(row).forEach(k => normalized[keyify(k)] = row[k]);
+
+  mapped.origen = (normalized["tupa/tusne"] || normalized["tupa/tusne (origen de la tarifa)"] || normalized["origen"] || normalized["tupa tusne"] || "").toString().trim();
+  mapped.unidad = (normalized["centro de costo"] || normalized["unidad responsable"] || normalized["centro de costo (unidad de organizacion encargada de brindar el servicio)"] || "").toString().trim();
+  mapped.cxc = (normalized["cxc"] || normalized["cxc: abreviatura del centro de costo"] || "").toString().trim();
+  mapped.area = (normalized["área responsable de brindar el servicio"] || normalized["area responsable de brindar el servicio"] || normalized["area"] || mapped.unidad).toString().trim();
+  mapped.proceso = (normalized["proceso"] || "").toString().trim();
+  mapped.tarifa = (normalized["tarifas"] || normalized["tarifa"] || normalized["denominación de la tarifa"] || "").toString().trim();
+  mapped.montoRaw = (normalized["monto"] || "").toString().trim();
+  mapped.monto = parseMonto(mapped.montoRaw);
+  mapped.requisitos = (normalized["requisitos generales"] || normalized["requisitos"] || "").toString().trim();
+  mapped.correo = (normalized["correo"] || "").toString().trim();
+  mapped.celular = (normalized["n° celular"] || normalized["numero celular"] || normalized["celular"] || "").toString().replace(/\s/g,"").trim();
+
+  return mapped;
+}
+
+// Load CSV via PapaParse
+function loadCSV(url){
+  statusEl.textContent = "Cargando datos desde Google Sheets...";
   Papa.parse(url, {
     download: true,
     header: true,
     skipEmptyLines: true,
-    complete: (results) => {
-      // results.data es un array de objetos usando headers del CSV
-      rawData = results.data.map(row => mapRowToModel(row));
-      STATUS.classList.add("hidden");
-      initializeSearch();
+    complete: results => {
+      rawData = results.data.map(r => mapRow(r)).filter(r => r && (r.tarifa || r.proceso));
+      if(rawData.length === 0){
+        statusEl.textContent = "No se encontraron registros en la hoja.";
+        return;
+      }
+      initMontoRange();
+      initFuse();
       populateFilters();
-      renderCards(rawData);
+      applyAllFilters();
+      statusEl.classList.add("hidden");
     },
-    error: (err) => {
-      console.error("Error PapaParse:", err);
-      STATUS.textContent = "Error cargando datos. Ver consola.";
+    error: err => {
+      console.error("PapaParse error:", err);
+      statusEl.textContent = "Error cargando datos. Revisa la consola.";
     }
   });
 }
 
-// Mapea cada fila (objeto con keys del CSV) a los campos que usamos
-function mapRowToModel(row){
-  // Normaliza keys (lowercase trimmed) para encontrar las columnas independientemente de cómo vengan
-  const normalized = {};
-  Object.keys(row).forEach(k => {
-    normalized[normalizeFieldName(k)] = row[k];
+// Init Fuse for fuzzy search
+function initFuse(){
+  fuse = new Fuse(rawData, {
+    keys: [
+      { name: "tarifa", weight: 0.9 },
+      { name: "proceso", weight: 0.8 },
+      { name: "unidad", weight: 0.7 },
+      { name: "area", weight: 0.5 }
+    ],
+    threshold: 0.35
   });
-
-  // Buscar por nombres esperados (varias variantes)
-  const orCol = normalized["tupa/tusne"] ?? normalized["tupa/tusne (origen de la tarifa)"] ?? normalized["origen"] ?? normalized["tupa tusne"] ?? normalized["tupa"];
-  const unidad = normalized["centro de costo"] ?? normalized["unidad responsable"] ?? normalized["centro de costo (unidad de organizacion)"] ?? normalized["unidad"] ?? normalized["centro de costo"] ?? "";
-  const cxc = normalized["cxc"] ?? normalized["cxc: abreviatura del centro de costo"] ?? normalized["abreviatura"] ?? "";
-  const area = normalized["área responsable de brindar el servicio"] ?? normalized["area responsable de brindar el servicio"] ?? normalized["area"] ?? unidad;
-  const proceso = normalized["proceso"] ?? normalized["proceso (proceso del TUPA o TUSNE del cual es parte la tarifa de la fila)"] ?? "";
-  const tarifa = normalized["tarifas"] ?? normalized["tarifa"] ?? normalized["denominación de la tarifa"] ?? normalized["denominacion"] ?? "";
-  const monto = normalized["monto"] ?? normalized["monto (monto de la tarifa sin incluir las comisiones)"] ?? "";
-  const requisitos = normalized["requisitos generales"] ?? normalized["requisitos"] ?? "";
-  const correo = normalized["correo"] ?? normalized["correo (correo de la unidad)"] ?? "";
-  const celular = normalized["n° celular"] ?? normalized["n° celular (misma funcion)"] ?? normalized["celular"] ?? normalized["telefono"] ?? "";
-
-  return {
-    origen: (orCol || "").toString().trim(),
-    unidad: (unidad || "").toString().trim(),
-    cxc: (cxc || "").toString().trim(),
-    area: (area || "").toString().trim(),
-    proceso: (proceso || "").toString().trim(),
-    tarifa: (tarifa || "").toString().trim(),
-    monto: (monto || "").toString().trim(),
-    requisitos: (requisitos || "").toString().trim(),
-    correo: (correo || "").toString().trim(),
-    celular: (celular || "").toString().trim()
-  };
 }
 
-// Inicializa Fuse
-function initializeSearch(){
-  fuse = new Fuse(rawData, fuseOptions);
-  SEARCH_INPUT.addEventListener("input", onSearchChange);
-  UNIDAD_SELECT.addEventListener("change", onFiltersChange);
-  PROCESO_SELECT.addEventListener("change", onFiltersChange);
-}
-
-// Poblado de filtros dinámicos
+// Populate select filters
 function populateFilters(){
   const unidades = Array.from(new Set(rawData.map(r => r.unidad).filter(Boolean))).sort();
   const procesos = Array.from(new Set(rawData.map(r => r.proceso).filter(Boolean))).sort();
 
+  unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
+  procesoFilter.innerHTML = `<option value="">Proceso</option>`;
+
   unidades.forEach(u => {
     const o = document.createElement("option"); o.value = u; o.textContent = u;
-    UNIDAD_SELECT.appendChild(o);
+    unidadFilter.appendChild(o);
   });
   procesos.forEach(p => {
     const o = document.createElement("option"); o.value = p; o.textContent = p;
-    PROCESO_SELECT.appendChild(o);
+    procesoFilter.appendChild(o);
   });
+
+  unidadFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
+  procesoFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
 }
 
-// Manejo de búsqueda y filtros
-function onSearchChange(){
-  applyFilters();
+// Initialize monto slider bounds
+function initMontoRange(){
+  const montos = rawData.map(r => r.monto || 0);
+  montoMin = Math.min(...montos);
+  montoMax = Math.max(...montos);
+
+  // Round bounds nicely
+  const step = montoMax > 100 ? 1 : 0.01;
+  const pad = Math.max(1, Math.round(montoMax * 0.02));
+
+  const low = Math.max(0, Math.floor(montoMin) - pad);
+  const high = Math.ceil(montoMax) + pad;
+
+  minSlider.min = low;
+  minSlider.max = high;
+  maxSlider.min = low;
+  maxSlider.max = high;
+
+  minSlider.value = low;
+  maxSlider.value = high;
+
+  minValueEl.textContent = low;
+  maxValueEl.textContent = high;
+
+  // Event listeners
+  minSlider.addEventListener("input", onSliderChange);
+  maxSlider.addEventListener("input", onSliderChange);
 }
-function onFiltersChange(){
-  applyFilters();
+
+function onSliderChange(){
+  let minV = Number(minSlider.value);
+  let maxV = Number(maxSlider.value);
+  if(minV > maxV){
+    // swap to keep logical order
+    [minV, maxV] = [maxV, minV];
+  }
+  minValueEl.textContent = minV.toFixed(2).replace(/\.00$/,"");
+  maxValueEl.textContent = maxV.toFixed(2).replace(/\.00$/,"");
+  currentPage = 1;
+  applyAllFilters();
 }
 
-function applyFilters(){
-  const q = SEARCH_INPUT.value.trim();
-  const unidadVal = UNIDAD_SELECT.value;
-  const procesoVal = PROCESO_SELECT.value;
+// Apply search + filters + monto + ordering and then pagination
+function applyAllFilters(){
+  const q = searchInput.value.trim();
+  const unidad = unidadFilter.value;
+  const proceso = procesoFilter.value;
+  const minV = Math.min(Number(minSlider.value), Number(maxSlider.value));
+  const maxV = Math.max(Number(minSlider.value), Number(maxSlider.value));
 
-  let results = rawData;
+  // start with all
+  let results = rawData.slice();
 
-  // Fuzzy search si hay texto
-  if (q.length >= 2){
+  // fuzzy search
+  if(q.length >= 2 && fuse){
     const fuseRes = fuse.search(q);
     results = fuseRes.map(r => r.item);
   }
 
-  // filtros exactos
-  if (unidadVal){
-    results = results.filter(r => r.unidad === unidadVal);
-  }
-  if (procesoVal){
-    results = results.filter(r => r.proceso === procesoVal);
-  }
+  // filters
+  if(unidad) results = results.filter(r => r.unidad === unidad);
+  if(proceso) results = results.filter(r => r.proceso === proceso);
 
-  renderCards(results);
+  // monto filter
+  results = results.filter(r => (r.monto || 0) >= minV && (r.monto || 0) <= maxV);
+
+  // Order TUPA first
+  results.sort((a,b) => {
+    const ao = (a.origen || "").toString().toLowerCase();
+    const bo = (b.origen || "").toString().toLowerCase();
+    if(ao === "tupa" && bo !== "tupa") return -1;
+    if(ao !== "tupa" && bo === "tupa") return 1;
+    return 0;
+  });
+
+  filteredData = results;
+  renderPage(1);
 }
 
-// Renderiza tarjetas
+// RENDER pagination & page
+function renderPage(page){
+  currentPage = page;
+  const total = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if(page < 1) page = 1;
+  if(page > totalPages) page = totalPages;
+
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const pageItems = filteredData.slice(start, end);
+
+  renderCards(pageItems);
+  renderPagination(totalPages, page);
+  // scroll to top of cards
+  window.scrollTo({ top: document.querySelector(".container").offsetTop - 10, behavior: "smooth" });
+}
+
 function renderCards(items){
-  CARDS.innerHTML = "";
-  if (!items || items.length === 0){
-    CARDS.innerHTML = `<div class="status">No se encontraron resultados.</div>`;
+  cardsContainer.innerHTML = "";
+  if(!items || items.length === 0){
+    cardsContainer.innerHTML = `<div class="status">No se encontraron resultados.</div>`;
     return;
   }
 
@@ -153,72 +253,130 @@ function renderCards(items){
     const div = document.createElement("div");
     div.className = "card";
 
-    // Construir HTML seguro (escape mínimo)
-    const tarifa = escapeHTML(item.tarifa || "—");
-    const monto = escapeHTML(item.monto || "—");
-    const proceso = escapeHTML(item.proceso || "—");
-    const unidad = escapeHTML(item.unidad || "—");
-    const area = escapeHTML(item.area || "—");
-    const origen = escapeHTML(item.origen || "—");
-    const correo = (item.correo || "").trim();
-    const celular = (item.celular || "").replace(/\s|\+/g,""); // limpiar
-    const requisitos = (item.requisitos || "").trim();
+    const montoDisplay = item.monto ? item.monto.toString() : (item.montoRaw || "0");
 
     div.innerHTML = `
-      <div class="tag-origen">Origen: ${origen}</div>
-      <div class="card-title">${tarifa}</div>
+      <div class="tag-origen">Origen: ${escapeHTML(item.origen || "")}</div>
+      <div class="card-title">${escapeHTML(item.tarifa || "—")}</div>
 
-      <div class="meta"><b>Monto:</b> S/ ${monto}</div>
-      <div class="meta"><b>Proceso:</b> ${proceso}</div>
-      <div class="meta"><b>Unidad:</b> ${unidad}</div>
-      <div class="meta"><b>Área:</b> ${area}</div>
+      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(montoDisplay)}</div>
+      <div class="meta"><strong>Proceso:</strong> ${escapeHTML(item.proceso || "—")}</div>
+      <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad || "—")}</div>
+      <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area || "—")}</div>
 
       <div class="actions">
-        <button class="btn btn-requisitos" data-requisitos="${encodeURIComponent(requisitos)}">🗂 Ver requisitos</button>
-
-        <a class="btn btn-mail" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(correo)}" target="_blank" title="Enviar correo">
-          🔵 Enviar correo
-        </a>
-
-        <a class="btn btn-green" href="https://wa.me/51${encodeURIComponent(celular)}" target="_blank" title="WhatsApp">
-          🟠 WhatsApp
-        </a>
+        <button class="btn btn-requisitos" data-item='${encodeURIComponent(JSON.stringify(item))}'><i class="bi bi-info-circle"></i> Requisitos</button>
+        <a class="btn btn-mail" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.correo || "")}" target="_blank" rel="noopener noreferrer"><i class="bi bi-envelope-fill"></i> Correo</a>
+        <a class="btn btn-ws" href="https://wa.me/51${encodeURIComponent((item.celular||"").replace(/\D/g,""))}" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp"></i> WhatsApp</a>
       </div>
     `;
 
-    // añadir listeners al botón de requisitos
-    const requisitosBtn = div.querySelector(".btn-requisitos");
-    requisitosBtn.addEventListener("click", () => {
-      const encoded = requisitosBtn.getAttribute("data-requisitos") || "";
-      const text = decodeURIComponent(encoded) || "No especificado";
-      openModal(text);
+    // attach listener for modal
+    const reqBtn = div.querySelector(".btn-requisitos");
+    reqBtn.addEventListener("click", () => {
+      const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
+      openModal(it);
     });
 
-    CARDS.appendChild(div);
+    cardsContainer.appendChild(div);
   });
 }
 
-// Modal
-function openModal(text){
-  MODAL_CONTENT.textContent = text || "No especificado";
-  MODAL_OVERLAY.classList.remove("hidden");
+// Pagination UI
+function renderPagination(totalPages, current){
+  paginationEl.innerHTML = "";
+  if(totalPages <= 1) return;
+
+  const createBtn = (txt, disabled=false, cls="") => {
+    const b = document.createElement("button");
+    b.className = `page-btn ${cls}`; b.textContent = txt;
+    if(disabled) b.disabled = true;
+    return b;
+  };
+
+  // First / Prev
+  const first = createBtn("«");
+  first.onclick = () => renderPage(1);
+  paginationEl.appendChild(first);
+
+  const prev = createBtn("‹");
+  prev.onclick = () => renderPage(Math.max(1, current-1));
+  paginationEl.appendChild(prev);
+
+  // Pages: show window
+  const maxButtons = 7;
+  let start = Math.max(1, current - Math.floor(maxButtons/2));
+  let end = Math.min(totalPages, start + maxButtons - 1);
+  if(end - start < maxButtons -1){
+    start = Math.max(1, end - maxButtons + 1);
+  }
+
+  for(let p = start; p<=end; p++){
+    const b = createBtn(p, false, p===current ? "active" : "");
+    b.onclick = () => renderPage(p);
+    paginationEl.appendChild(b);
+  }
+
+  // Next / Last
+  const next = createBtn("›"); next.onclick = () => renderPage(Math.min(totalPages, current+1));
+  paginationEl.appendChild(next);
+
+  const last = createBtn("»"); last.onclick = () => renderPage(totalPages);
+  paginationEl.appendChild(last);
+}
+
+// Modal open/close
+function openModal(item){
+  // Format requisitos into bullets (split by newline or ; or .-)
+  let text = item.requisitos || "No especificado";
+  // Normalize separators
+  let parts = [];
+  if(text.indexOf("\n") >= 0) parts = text.split(/\n+/);
+  else if(text.indexOf(";") >= 0) parts = text.split(/\s*;\s*/);
+  else if(text.indexOf(".") >= 0 && text.length > 40) parts = text.split(/\.\s+/).filter(Boolean);
+  else parts = [text];
+
+  // Build HTML list
+  const ul = document.createElement("ul");
+  ul.style.margin = "8px 0 12px 16px";
+  parts.forEach(p => {
+    const li = document.createElement("li");
+    li.textContent = p.trim();
+    ul.appendChild(li);
+  });
+
+  modalBody.innerHTML = "";
+  modalBody.appendChild(ul);
+
+  modalUnidad.textContent = item.unidad || "—";
+  modalArea.textContent = item.area || "—";
+  modalCorreo.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.correo || "")}`;
+  modalWhats.href = `https://wa.me/51${encodeURIComponent((item.celular||"").replace(/\D/g,""))}`;
+
+  modalOverlay.classList.remove("hidden");
   document.body.style.overflow = "hidden";
 }
+
 function closeModal(){
-  MODAL_OVERLAY.classList.add("hidden");
+  modalOverlay.classList.add("hidden");
   document.body.style.overflow = "";
 }
 
-MODAL_CLOSE.addEventListener("click", closeModal);
-MODAL_OVERLAY.addEventListener("click", (e)=>{
-  if(e.target === MODAL_OVERLAY) closeModal();
-});
+modalClose.addEventListener("click", closeModal);
+modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
 
-// Escape para insertar HTML seguro (básico)
-function escapeHTML(str){
-  if(!str) return "";
-  return str.replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; });
+// Escape HTML
+function escapeHTML(s){
+  if(!s) return "";
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
 }
 
-// inicializar carga
-loadDataFromCSV(SHEET_CSV_URL);
+// Visible handlers
+searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+
+// initialize
+if(!CSV_URL){
+  statusEl.textContent = "No se ha configurado la URL CSV. Revisa config.";
+} else {
+  loadCSV(CSV_URL);
+}
