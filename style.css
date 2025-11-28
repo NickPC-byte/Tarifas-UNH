@@ -1,159 +1,104 @@
-/* Paleta institucional (mezcla sugerida) */
 :root{
-  --azul-oscuro: #003866;
-  --azul-claro: #78b8e5;
-  --gris-texto: #3c3d3d;
-  --amarillo: #f5eb6b;
-  --fondo: #f4f8fc;
-  --acento: #f56eb4;
+  --azul-oscuro:#003866;
+  --azul-claro:#78b8e5;
+  --gris-texto:#3c3d3d;
+  --amarillo:#f5eb6b;
+  --fondo:#f4f8fc;
+  --accent:#c822bc;
 }
 
-/* Base */
+/* Reset / base */
 *{box-sizing:border-box}
 body{
-  font-family: "Poppins", system-ui, Arial, sans-serif;
   margin:0;
+  font-family:"Poppins",system-ui,Arial,sans-serif;
   background:var(--fondo);
   color:var(--gris-texto);
   -webkit-font-smoothing:antialiased;
 }
 
+/* Header */
 .site-header{
-  background: var(--azul-oscuro);
-  color: #fff;
-  padding: 26px 18px;
+  background:var(--azul-oscuro);
+  color:#fff;
+  padding:22px;
   text-align:center;
 }
-.site-header h1{
-  margin:0;
-  font-size:22px;
-  font-weight:600;
-}
-.subtitle{margin:6px 0 0;font-size:13px;opacity:0.95}
+.site-header h1{ margin:0; font-size:20px; font-weight:600 }
+.subtitle{ margin:6px 0 0; opacity:0.95; font-size:13px }
 
-/* Contenedor */
-.container{ max-width:1150px; margin:24px auto; padding:0 16px; }
+/* Container */
+.container{ max-width:1200px; margin:20px auto; padding:0 16px; }
 
 /* Controls */
-.controls{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  margin-bottom:18px;
-  flex-wrap:wrap;
-}
-.left-controls{ flex:1; min-width:220px; }
-.right-controls{ display:flex; gap:8px; align-items:center; }
-
-/* Inputs */
+.controls{ display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px; }
+.search-wrap{ flex:1; min-width:220px; }
 #searchInput{
-  width:100%;
-  padding:12px 14px;
-  border-radius:10px;
-  border:1px solid rgba(0,0,0,0.08);
-  box-shadow:0 1px 4px rgba(0,0,0,0.04);
-  font-size:14px;
+  width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(0,0,0,0.08); font-size:14px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.04);
 }
-select{
-  padding:10px 12px;
-  border-radius:10px;
-  border:2px solid var(--azul-claro);
-  background:white;
-  font-size:14px;
+
+/* Filters wrap */
+.filters-wrap{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.filter-select{ padding:10px 12px; border-radius:10px; border:2px solid var(--azul-claro); background:#fff; font-size:14px; width:220px; }
+@media(max-width:780px){ .filter-select{ width:150px } }
+
+/* Monto slider */
+.monto-filter{ display:flex; flex-direction:column; align-items:flex-end; min-width:240px; }
+.monto-label{ font-weight:600; color:var(--azul-oscuro); margin-bottom:6px; font-size:13px; }
+.slider-wrap{ position:relative; width:240px; height:36px; }
+.slider-wrap input[type="range"]{
+  position:absolute; left:0; right:0; top:10px; width:100%; pointer-events:none; -webkit-appearance:none; background:transparent;
 }
+.slider-wrap input[type="range"]::-webkit-slider-thumb{ pointer-events:auto; -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--azul-oscuro); border:3px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.15) }
+.monto-values{ width:240px; display:flex; justify-content:space-between; font-size:13px; margin-top:6px; color:var(--gris-texto) }
 
 /* Status */
-.status{ text-align:center; color:var(--azul-oscuro); margin:20px 0; font-weight:600; }
+.status{ text-align:center; color:var(--azul-oscuro); font-weight:600; margin:14px 0 }
 
 /* Cards grid */
-.cards{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap:18px;
-}
+.cards{ display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; }
+@media(max-width:1000px){ .cards{ grid-template-columns: repeat(2, 1fr) } }
+@media(max-width:600px){ .cards{ grid-template-columns: 1fr } }
 
 /* Card */
-.card{
-  background:#fff;
-  border-radius:12px;
-  padding:16px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-  border-left:6px solid var(--azul-oscuro);
-  transition:transform .18s ease, box-shadow .18s ease;
-}
-.card:hover{ transform:translateY(-6px); box-shadow:0 12px 30px rgba(0,0,0,0.12); }
+.card{ background:#fff; border-radius:12px; padding:14px; box-shadow:0 8px 24px rgba(4,20,40,0.06); border-left:6px solid var(--azul-oscuro); transition:transform .18s ease }
+.card:hover{ transform:translateY(-6px) }
+.tag-origen{ display:inline-block; background:var(--azul-claro); color:#022; padding:6px 9px; border-radius:8px; font-weight:700; font-size:12px; margin-bottom:8px }
+.card-title{ font-size:16px; font-weight:700; color:var(--azul-oscuro); margin:6px 0 8px }
+.meta{ font-size:14px; margin:5px 0; color:var(--gris-texto) }
+.meta strong{ color:var(--azul-oscuro); font-weight:600 }
 
-.tag-origen{
-  display:inline-block;
-  background:var(--azul-claro);
-  color:#003;
-  padding:6px 10px;
-  border-radius:8px;
-  font-size:12px;
-  font-weight:600;
-  margin-bottom:8px;
-}
+/* Actions */
+.actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
+.btn{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; border:none; font-weight:600; cursor:pointer; text-decoration:none; color:#fff; }
+.btn-requisitos{ background:var(--amarillo); color:#222 }
+.btn-mail{ background:var(--azul-oscuro) }
+.btn-ws{ background:#25D366 } /* whatsapp green */
 
-/* Title and meta */
-.card-title{ font-size:16px; font-weight:700; color:var(--azul-oscuro); margin:4px 0 8px; }
-.meta{ font-size:13px; margin:4px 0; color:var(--gris-texto); }
-.meta b{ color:var(--azul-oscuro); font-weight:600; }
+/* Requisitos panel small (fallback if needed) */
+.requisitos-panel{ margin-top:12px; display:none; background:#f7fbff; padding:10px; border-radius:8px; border-left:4px solid var(--azul-claro) }
+.requisitos-panel.open{ display:block }
 
-/* Buttons row */
-.actions{
-  display:flex;
-  gap:8px;
-  margin-top:12px;
-  flex-wrap:wrap;
-}
-.btn{
-  padding:8px 12px;
-  border-radius:8px;
-  border:none;
-  cursor:pointer;
-  font-weight:600;
-  font-size:13px;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  text-decoration:none;
-  color: white;
-}
-.btn-green{ background: var(--add, #56b447); } /* whatsapp (fallback) */
-.btn-mail{ background: var(--azul-oscuro); }
-.btn-requisitos{ background: var(--amarillo); color:#222; }
+/* Pagination */
+.pagination{ display:flex; gap:8px; justify-content:center; align-items:center; margin:20px 0; flex-wrap:wrap }
+.page-btn{ padding:8px 10px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer }
+.page-btn.active{ background:var(--azul-oscuro); color:#fff; border-color:var(--azul-oscuro) }
 
-/* Modal overlay */
-.modal-overlay{
-  position:fixed; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  background: rgba(0,0,0,0.45);
-  z-index:9999;
-  padding:16px;
-}
-.modal{
-  width:100%;
-  max-width:720px;
-  background:#fff;
-  border-radius:10px;
-  padding:20px 20px 18px;
-  position:relative;
-  box-shadow:0 8px 36px rgba(0,0,0,0.25);
-}
-.modal h2{ margin:0 0 12px; color:var(--azul-oscuro); font-size:18px; }
-.modal-content{ font-size:14px; color:var(--gris-texto); white-space:pre-wrap; line-height:1.5; }
+/* Modal */
+.modal-overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.46); z-index:9999; padding:18px }
+.modal{ background:#fff; width:100%; max-width:720px; border-radius:10px; padding:20px; box-shadow:0 10px 36px rgba(0,0,0,0.28); position:relative }
+.modal h2{ margin:0 0 10px; color:var(--azul-oscuro) }
+.modal-body{ font-size:14px; color:var(--gris-texto); margin-bottom:12px; white-space:pre-wrap }
+.modal-meta p{ margin:6px 0; font-size:14px }
+.modal-close{ position:absolute; right:12px; top:8px; background:transparent; border:none; font-size:18px; cursor:pointer }
 
-/* close */
-.modal-close{
-  position:absolute; right:12px; top:10px;
-  background:transparent; border:none; font-size:18px; cursor:pointer; color:#666;
-}
+/* hidden */
+.hidden{ display:none }
 
-/* hidden helper */
-.hidden{ display:none; }
-
-/* responsive tweaks */
-@media (max-width:520px){
-  .actions{ flex-direction:column; }
-  .modal{ padding:16px; }
+/* small screens tweaks */
+@media(max-width:480px){
+  .monto-filter{ min-width:100% }
+  .slider-wrap{ width:100% }
+  .filter-select{ width:100% }
 }
