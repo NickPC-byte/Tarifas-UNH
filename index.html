@@ -1,33 +1,62 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tarifario Institucional - UNH</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tarifario TUPA / TUSNE - UNH</title>
 
-    <link rel="stylesheet" href="style.css" />
+  <!-- Tipografía elegante -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Librerías externas -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js"></script>
 </head>
 <body>
 
-    <h1 class="title">Tarifario Institucional - UNH</h1>
-
-    <div class="filters">
-        <select id="unidadFilter">
-            <option value="">Unidad Responsable</option>
-        </select>
-
-        <select id="procesoFilter">
-            <option value="">Proceso</option>
-        </select>
+  <header class="site-header">
+    <div class="site-title">
+      <h1>Tarifario TUPA / TUSNE — UNH</h1>
+      <p class="subtitle">Buscador interactivo de tarifas, requisitos y contactos.</p>
     </div>
+  </header>
 
-    <div id="loading" class="loading">Cargando información...</div>
-    <div id="error" class="error hidden">Ocurrió un error al cargar los datos.</div>
+  <main class="container">
 
-    <div id="cardsContainer" class="cards-container"></div>
+    <section class="controls">
+      <div class="left-controls">
+        <input id="searchInput" type="search" placeholder="Buscar (tarifa, proceso, unidad, área)..." />
+      </div>
 
-    <script src="config.js"></script>
-    <script src="script.js"></script>
+      <div class="right-controls">
+        <select id="unidadFilter"><option value="">Unidad Responsable</option></select>
+        <select id="procesoFilter"><option value="">Proceso</option></select>
+      </div>
+    </section>
 
+    <div id="status" class="status">Cargando datos…</div>
+    <div id="cards" class="cards"></div>
+  </main>
+
+  <!-- Modal requisitos -->
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <button id="modalClose" class="modal-close">✕</button>
+      <h2>REQUISITOS</h2>
+      <div id="modalContent" class="modal-content"></div>
+    </div>
+  </div>
+
+  <!-- Config: CSV public -->
+  <script>
+    // URL CSV publicada (tuya)
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
+  </script>
+
+  <!-- Lógica principal -->
+  <script src="script.js"></script>
 </body>
 </html>
