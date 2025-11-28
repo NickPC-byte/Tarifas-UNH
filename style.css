@@ -234,24 +234,102 @@ body{
 }
 
 .modal{
-  background:#fff;
-  padding:22px;
-  border-radius:14px;
+  background:#ffffff;
   width:100%;
-  max-width:720px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.25);
+  max-width:700px;
+  border-radius:16px;
+  padding:26px;
+  box-shadow:0 12px 36px rgba(0,0,0,0.20);
   position:relative;
+  animation:fadeInModal .25s ease;
 }
 
+/* Animación suave */
+@keyframes fadeInModal {
+  from { transform:scale(0.94); opacity:0 }
+  to   { transform:scale(1); opacity:1 }
+}
+
+/* Título */
+.modal-title{
+  font-size:22px;
+  font-weight:700;
+  color:var(--azul-oscuro);
+  margin-top:0;
+  margin-bottom:14px;
+}
+
+/* Subtítulos */
+.req-title{
+  font-size:18px;
+  font-weight:700;
+  color:var(--azul-oscuro);
+  margin-top:18px;
+}
+
+/* Meta con iconos */
+.modal-meta p{
+  margin:10px 0;
+  font-size:15px;
+  color:var(--gris-texto);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.modal-meta i{
+  font-size:17px;
+  color:var(--azul-oscuro);
+}
+
+.modal-meta a{
+  color:var(--azul-oscuro);
+  font-weight:600;
+  text-decoration:none;
+}
+.modal-meta a:hover{
+  text-decoration:underline;
+}
+
+/* Requisitos */
+.modal-body{
+  background:#f4f7fc;
+  border-radius:10px;
+  padding:16px;
+  margin-top:10px;
+}
+
+.modal-body ul{
+  padding-left:20px;
+}
+.modal-body li{
+  margin-bottom:6px;
+  line-height:1.45;
+}
+
+/* Botón cerrar */
 .modal-close{
   position:absolute;
-  right:12px;
-  top:10px;
+  right:16px;
+  top:16px;
+  background:var(--azul-oscuro);
   border:none;
-  background:transparent;
-  font-size:28px;
+  color:white;
+  font-size:14px;
+  padding:6px 12px;
+  border-radius:8px;
   cursor:pointer;
-  color:var(--azul-oscuro);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.modal-close i{
+  font-size:18px;
+}
+
+.modal-close:hover{
+  background:#012a4b;
 }
 
 /* Requisitos */
