@@ -16,7 +16,7 @@
 
 <header class="site-header">
     <h1>Tarifario TUPA / TUSNE</h1>
-    <p class="subtitle">Consulta interactiva de tarifas de la UNH</p>
+    <p class="subtitle">Consulta interactiva de tarifas universitarias</p>
 </header>
 
 <div class="container">
@@ -70,49 +70,79 @@
 <!-- Modal -->
 <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        
+
         <!-- Botón cerrar -->
-        <button id="modalClose" class="modal-close" type="button" aria-label="Cerrar">
+        <button id="modalClose" class="modal-close" aria-label="Cerrar modal">
             <i class="bi bi-x-circle-fill"></i> Cerrar
         </button>
 
         <!-- Título -->
         <h2 id="modalTitle" class="modal-title"></h2>
 
+        <!-- Mensaje institucional fijo (versión amigable) -->
+        <div class="modal-info">
+          <i class="bi bi-info-circle-fill"></i>
+          <div>
+            <strong>Importante:</strong> Los montos mostrados son el <em>monto base</em>. Las comisiones por cobro varían según el canal de pago y se muestran como estimado. Siempre confirme el monto final con la entidad recaudadora.
+          </div>
+        </div>
+
         <!-- Meta con íconos -->
         <div class="modal-meta">
 
-            <p class="meta-row">
+            <p>
                 <i class="bi bi-building"></i>
                 <strong>Centro de costo / Unidad responsable:</strong>
-                <span id="modalUnidad" class="meta-val"></span>
+                <span id="modalUnidad"></span>
             </p>
 
-            <p class="meta-row">
+            <p>
                 <i class="bi bi-diagram-3"></i>
                 <strong>Área encargada:</strong>
-                <span id="modalArea" class="meta-val"></span>
+                <span id="modalArea"></span>
             </p>
 
-            <p class="meta-row">
+            <p>
                 <i class="bi bi-envelope-fill"></i>
                 <strong>Correo:</strong>
                 <a id="modalCorreoLink" href="#" target="_blank" rel="noopener noreferrer">
-                    <span id="modalCorreo" class="meta-val"></span>
+                    <span id="modalCorreo"></span>
                 </a>
             </p>
 
-            <p class="meta-row">
+            <p>
                 <i class="bi bi-telephone-fill"></i>
                 <strong>Teléfono:</strong>
                 <a id="modalTelefonoLink" href="#" target="_blank" rel="noopener noreferrer">
-                    <span id="modalTelefono" class="meta-val"></span>
+                    <span id="modalTelefono"></span>
                 </a>
             </p>
         </div>
 
         <h3 class="req-title">Requisitos</h3>
-        <div id="modalRequisitos" class="modal-body" aria-live="polite"></div>
+        <div id="modalRequisitos" class="modal-body"></div>
+
+        <!-- ---------------------------
+             NUEVA SECCIÓN: CALCULADORA
+             --------------------------- -->
+        <div class="modal-calculator">
+          <label for="paymentChannel"><strong>Seleccione canal de pago</strong></label>
+          <select id="paymentChannel" class="filter-select">
+            <option value="">-- Seleccionar --</option>
+            <option value="caja_unh">Caja UNH (S/ 1.00 — aplica para montos ≥ S/20)</option>
+            <option value="bn_pequeno">Banco de la Nación (S/0.10 - S/144): S/ 1.80</option>
+            <option value="bn_grande">Banco de la Nación (> S/144): 1.25% del monto</option>
+            <option value="caja_huancayo">Caja Huancayo: S/ 1.00</option>
+            <option value="niubiz">Niubiz (Yape / tarjetas): 5.8% del monto</option>
+          </select>
+
+          <div id="commissionBox" class="commission-box hidden">
+            <div class="commission-row"><strong>Monto base:</strong> <span id="calcMonto">S/ 0.00</span></div>
+            <div class="commission-row"><strong>Comisión estimada:</strong> <span id="calcCommission">S/ 0.00</span></div>
+            <div class="commission-row total"><strong>Total estimado a pagar:</strong> <span id="calcTotal">S/ 0.00</span></div>
+            <div class="commission-note">El cálculo es un estimado. Confirme el monto en la entidad recaudadora.</div>
+          </div>
+        </div>
 
     </div>
 </div>
