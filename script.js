@@ -329,35 +329,65 @@ function renderPagination(totalPages, current){
   paginationEl.appendChild(createBtn("»", "page-btn", () => renderPage(totalPages)));
 }
 
-// Modal open/close
+// =============================
+//   NUEVO MODAL ELEGANTE
+// =============================
 function openModal(item){
-  // title: tarifa (you earlier wanted tarifa in modal title) - keep tarifa as title
-  modalTitle.textContent = item.tarifa || item.proceso || "Detalle";
 
-  // Requisitos -> list
+  // Título del modal (tarifa/proceso)
+  modalTitle.textContent = item.proceso || item.tarifa || "Detalle";
+
+  // META INFORMATIVA (con íconos)
+  modalUnidad.innerHTML = `<i class="bi bi-building"></i> ${escapeHTML(item.unidad || "—")}`;
+  modalArea.innerHTML = `<i class="bi bi-diagram-3"></i> ${escapeHTML(item.area || "—")}`;
+
+  // Correo con enlace clicable
+  if(item.correo){
+    modalCorreo.innerHTML =
+      `<i class="bi bi-envelope"></i> 
+       <a href="mailto:${item.correo}" target="_blank">${item.correo}</a>`;
+  } else {
+    modalCorreo.innerHTML = `<i class="bi bi-envelope"></i> —`;
+  }
+
+  // Teléfono con link hacia WhatsApp
+  const cel = (item.celular || "").replace(/\D/g,"");
+
+  if(cel){
+    modalTelefono.innerHTML =
+      `<i class="bi bi-telephone"></i> 
+       <a href="https://wa.me/51${cel}" target="_blank">${cel}</a>`;
+  } else {
+    modalTelefono.innerHTML = `<i class="bi bi-telephone"></i> —`;
+  }
+
+  // ===============================
+  //   REQUISITOS CON VIÑETAS
+  // ===============================
   let text = item.requisitos || "No especificado";
   let parts = [];
-  if(text.indexOf("\n") >= 0) parts = text.split(/\n+/);
-  else if(text.indexOf(";") >= 0) parts = text.split(/\s*;\s*/);
-  else if(text.indexOf(".") >= 0 && text.length > 40) parts = text.split(/\.\s+/).filter(Boolean);
+
+  if(text.includes("\n")) parts = text.split(/\n+/);
+  else if(text.includes(";")) parts = text.split(/\s*;\s*/);
+  else if(text.includes(".") && text.length > 40) parts = text.split(/\.\s+/);
   else parts = [text];
 
   modalRequisitos.innerHTML = "";
   const ul = document.createElement("ul");
+
   parts.forEach(p => {
     const li = document.createElement("li");
     li.textContent = p.trim();
     ul.appendChild(li);
   });
+
   modalRequisitos.appendChild(ul);
 
-  modalUnidad.textContent = item.unidad || "—";
-  modalArea.textContent = item.area || "—";
-  modalCorreo.textContent = item.correo || "—";
-  modalTelefono.textContent = item.celular || "—";
+  // Mostrar modal
   modalOverlay.classList.remove("hidden");
   document.body.style.overflow = "hidden";
 }
+
 
 function closeModal(){
   modalOverlay.classList.add("hidden");
