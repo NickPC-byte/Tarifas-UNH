@@ -28,6 +28,7 @@ body{
 }
 .site-header h1{ margin:0; font-size:20px; font-weight:600 }
 
+/* Container */
 .container{
   max-width:1200px;
   margin:20px auto;
@@ -232,7 +233,6 @@ body{
   z-index:9999;
 }
 
-/* Modal ventana */
 .modal{
   background:#ffffff;
   width:100%;
@@ -259,6 +259,21 @@ body{
   margin-bottom:14px;
 }
 
+/* Mensaje institucional fijo (info box) */
+.modal-info{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  background:#e9f3ff;
+  border-left:4px solid var(--azul-claro);
+  padding:12px 14px;
+  border-radius:10px;
+  color:var(--gris-texto);
+  margin-bottom:12px;
+}
+.modal-info i{ font-size:20px; color:var(--azul-oscuro); margin-top:2px; }
+.modal-info strong{ color:var(--azul-oscuro); }
+
 /* Subtítulos */
 .req-title{
   font-size:18px;
@@ -268,29 +283,20 @@ body{
 }
 
 /* Meta con iconos */
-/* Evitamos que aparezcan viñetas antes del texto rellenado */
-.modal-meta{
-  margin:0;
-  padding:0;
-}
-.modal-meta .meta-row{
+.modal-meta p{
   margin:10px 0;
   font-size:15px;
   color:var(--gris-texto);
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:8px;
 }
-.modal-meta .meta-row strong{ margin-right:6px; min-width:220px; display:inline-block; font-weight:700; color:var(--azul-oscuro) }
-.modal-meta .meta-val{ display:inline-block; margin-left:0; font-weight:600; color:var(--gris-texto) }
 
-/* icono */
 .modal-meta i{
-  font-size:18px;
+  font-size:17px;
   color:var(--azul-oscuro);
 }
 
-/* Enlaces dentro de meta */
 .modal-meta a{
   color:var(--azul-oscuro);
   font-weight:600;
@@ -303,14 +309,18 @@ body{
 /* Requisitos */
 .modal-body{
   background:#f4f7fc;
-  padding:16px;
   border-radius:10px;
+  padding:16px;
   margin-top:10px;
 }
 
-/* Lista en requisitos */
-.modal-body ul{ padding-left:20px; margin:8px 0; }
-.modal-body li{ margin-bottom:6px; line-height:1.45; }
+.modal-body ul{
+  padding-left:20px;
+}
+.modal-body li{
+  margin-bottom:6px;
+  line-height:1.45;
+}
 
 /* Botón cerrar */
 .modal-close{
@@ -328,8 +338,27 @@ body{
   align-items:center;
   gap:6px;
 }
-.modal-close i{ font-size:18px }
-.modal-close:hover{ background:#012a4b }
+
+.modal-close i{
+  font-size:18px;
+}
+
+.modal-close:hover{
+  background:#012a4b;
+}
+
+/* ------------ CALCULADORA EN MODAL ------------ */
+.modal-calculator{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+.commission-box{
+  background:#ffffff;
+  border:1px solid #e0eefc;
+  padding:12px;
+  border-radius:8px;
+  margin-top:6px;
+}
+.commission-row{ margin:6px 0; font-size:15px; color:var(--gris-texto) }
+.commission-row.total{ font-weight:700; color:var(--azul-oscuro) }
+.commission-note{ font-size:13px; color:#666; margin-top:8px; }
 
 /* Datos adicionales abajo del modal */
 .modal-extra{
@@ -340,9 +369,13 @@ body{
   border-top:1px solid #dde3ec;
 }
 
-.modal-extra strong{ color:var(--azul-oscuro) }
+.modal-extra strong{
+  color:var(--azul-oscuro);
+}
+/* =======================
+   PAGINACIÓN ELEGANTE
+   ======================= */
 
-/* PAGINACIÓN */
 .pagination{
   display:flex;
   justify-content:center;
@@ -351,6 +384,8 @@ body{
   margin-top:24px;
   flex-wrap:wrap;
 }
+
+/* Botones */
 .page-btn{
   padding:8px 12px;
   border-radius:8px;
@@ -363,5 +398,13 @@ body{
   min-width:36px;
   text-align:center;
 }
-.page-btn:hover{ background:var(--azul-claro); color:#fff; }
-.page-btn.active{ background:var(--azul-oscuro); color:#fff; }
+
+.page-btn:hover{
+  background:var(--azul-claro);
+  color:#fff;
+}
+
+.page-btn.active{
+  background:var(--azul-oscuro);
+  color:#fff;
+}
