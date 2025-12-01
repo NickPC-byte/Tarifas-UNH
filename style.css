@@ -354,3 +354,39 @@ body{
 .modal-extra strong{
   color:var(--azul-oscuro);
 }
+/* =======================
+   PAGINACIÓN ELEGANTE
+   ======================= */
+
+.pagination{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+  margin-top:24px;
+  flex-wrap:wrap;
+}
+
+/* Botones */
+.page-btn{
+  padding:8px 12px;
+  border-radius:8px;
+  background:#e6eff7;
+  color:var(--azul-oscuro);
+  border:none;
+  cursor:pointer;
+  font-weight:600;
+  transition:0.25s ease;
+  min-width:36px;
+  text-align:center;
+}
+
+.page-btn:hover{
+  background:var(--azul-claro);
+  color:#fff;
+}
+
+.page-btn.active{
+  background:var(--azul-oscuro);
+  color:#fff;
+}
