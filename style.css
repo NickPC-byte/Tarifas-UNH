@@ -1,4 +1,4 @@
-:root {
+:root{
   --azul-oscuro:#003866;
   --azul-claro:#78b8e5;
   --gris-texto:#3c3d3d;
@@ -27,6 +27,7 @@ body{
   color:#fff;
 }
 .site-header h1{ margin:0; font-size:20px; font-weight:600 }
+.subtitle{ margin:6px 0 0; opacity:0.95; font-size:13px }
 
 /* Container */
 .container{
@@ -66,14 +67,30 @@ body{
   display:flex;
   gap:10px;
   flex-wrap:wrap;
+  align-items:center;
 }
 .filter-select{
   padding:10px 12px;
   border-radius:10px;
   border:2px solid var(--azul-claro);
   background:#fff;
-  width:220px;
+  width:320px;
   font-size:14px;
+}
+
+/* Export button (next to select) */
+.btn-export{
+  background:var(--azul-oscuro);
+  color:#fff;
+  border:none;
+  padding:10px 12px;
+  border-radius:8px;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn-export:disabled{
+  background:#9bb5d0;
+  cursor:not-allowed;
 }
 
 /* Monto slider */
@@ -155,7 +172,7 @@ body{
   grid-template-columns:repeat(3,1fr);
   gap:18px;
 }
-@media(max-width:900px){
+@media(max-width:1000px){
   .cards{ grid-template-columns:repeat(2,1fr) }
 }
 @media(max-width:600px){
@@ -232,179 +249,33 @@ body{
   justify-content:center;
   z-index:9999;
 }
+.modal{ background:#ffffff; width:100%; max-width:700px; border-radius:16px; padding:26px; box-shadow:0 12px 36px rgba(0,0,0,0.20); position:relative; animation:fadeInModal .25s ease; }
+@keyframes fadeInModal { from { transform:scale(0.94); opacity:0 } to { transform:scale(1); opacity:1 } }
 
-.modal{
-  background:#ffffff;
-  width:100%;
-  max-width:700px;
-  border-radius:16px;
-  padding:26px;
-  box-shadow:0 12px 36px rgba(0,0,0,0.20);
-  position:relative;
-  animation:fadeInModal .25s ease;
-}
+.modal-title{ font-size:22px; font-weight:700; color:var(--azul-oscuro); margin-top:0; margin-bottom:14px; }
+.req-title{ font-size:18px; font-weight:700; color:var(--azul-oscuro); margin-top:18px; }
 
-/* Animación suave */
-@keyframes fadeInModal {
-  from { transform:scale(0.94); opacity:0 }
-  to   { transform:scale(1); opacity:1 }
-}
-
-/* Título */
-.modal-title{
-  font-size:22px;
-  font-weight:700;
-  color:var(--azul-oscuro);
-  margin-top:0;
-  margin-bottom:14px;
-}
-
-/* Mensaje institucional fijo (info box) */
-.modal-info{
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-  background:#e9f3ff;
-  border-left:4px solid var(--azul-claro);
-  padding:12px 14px;
-  border-radius:10px;
-  color:var(--gris-texto);
-  margin-bottom:12px;
-}
-.modal-info i{ font-size:20px; color:var(--azul-oscuro); margin-top:2px; }
-.modal-info strong{ color:var(--azul-oscuro); }
-
-/* Subtítulos */
-.req-title{
-  font-size:18px;
-  font-weight:700;
-  color:var(--azul-oscuro);
-  margin-top:18px;
-}
-
-/* Meta con iconos */
-.modal-meta p{
-  margin:10px 0;
-  font-size:15px;
-  color:var(--gris-texto);
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.modal-meta i{
-  font-size:17px;
-  color:var(--azul-oscuro);
-}
-
-.modal-meta a{
-  color:var(--azul-oscuro);
-  font-weight:600;
-  text-decoration:none;
-}
-.modal-meta a:hover{
-  text-decoration:underline;
-}
+.modal-meta p{ margin:10px 0; font-size:15px; color:var(--gris-texto); display:flex; align-items:center; gap:8px; }
+.modal-meta i{ font-size:17px; color:var(--azul-oscuro); }
+.modal-meta a{ color:var(--azul-oscuro); font-weight:600; text-decoration:none; }
+.modal-meta a:hover{ text-decoration:underline; }
 
 /* Requisitos */
-.modal-body{
-  background:#f4f7fc;
-  border-radius:10px;
-  padding:16px;
-  margin-top:10px;
-}
-
-.modal-body ul{
-  padding-left:20px;
-}
-.modal-body li{
-  margin-bottom:6px;
-  line-height:1.45;
-}
+.modal-body{ background:#f4f7fc; border-radius:10px; padding:16px; margin-top:10px; }
+.modal-body ul{ padding-left:20px; }
+.modal-body li{ margin-bottom:6px; line-height:1.45; }
 
 /* Botón cerrar */
-.modal-close{
-  position:absolute;
-  right:16px;
-  top:16px;
-  background:var(--azul-oscuro);
-  border:none;
-  color:white;
-  font-size:14px;
-  padding:6px 12px;
-  border-radius:8px;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  gap:6px;
-}
+.modal-close{ position:absolute; right:16px; top:16px; background:var(--azul-oscuro); border:none; color:white; font-size:14px; padding:6px 12px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.modal-close i{ font-size:18px; }
+.modal-close:hover{ background:#012a4b; }
 
-.modal-close i{
-  font-size:18px;
-}
+/* Pagination */
+.pagination{ display:flex; justify-content:center; align-items:center; gap:6px; margin-top:24px; flex-wrap:wrap; }
+.page-btn{ padding:8px 12px; border-radius:8px; background:#e6eff7; color:var(--azul-oscuro); border:none; cursor:pointer; font-weight:600; transition:0.25s ease; min-width:36px; text-align:center; }
+.page-btn:hover{ background:var(--azul-claro); color:#fff; }
+.page-btn.active{ background:var(--azul-oscuro); color:#fff; }
 
-.modal-close:hover{
-  background:#012a4b;
-}
-
-/* ------------ CALCULADORA EN MODAL ------------ */
-.modal-calculator{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
-.commission-box{
-  background:#ffffff;
-  border:1px solid #e0eefc;
-  padding:12px;
-  border-radius:8px;
-  margin-top:6px;
-}
-.commission-row{ margin:6px 0; font-size:15px; color:var(--gris-texto) }
-.commission-row.total{ font-weight:700; color:var(--azul-oscuro) }
-.commission-note{ font-size:13px; color:#666; margin-top:8px; }
-
-/* Datos adicionales abajo del modal */
-.modal-extra{
-  margin-top:16px;
-  font-size:13px;
-  color:#555;
-  padding-top:10px;
-  border-top:1px solid #dde3ec;
-}
-
-.modal-extra strong{
-  color:var(--azul-oscuro);
-}
-/* =======================
-   PAGINACIÓN ELEGANTE
-   ======================= */
-
-.pagination{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:6px;
-  margin-top:24px;
-  flex-wrap:wrap;
-}
-
-/* Botones */
-.page-btn{
-  padding:8px 12px;
-  border-radius:8px;
-  background:#e6eff7;
-  color:var(--azul-oscuro);
-  border:none;
-  cursor:pointer;
-  font-weight:600;
-  transition:0.25s ease;
-  min-width:36px;
-  text-align:center;
-}
-
-.page-btn:hover{
-  background:var(--azul-claro);
-  color:#fff;
-}
-
-.page-btn.active{
-  background:var(--azul-oscuro);
-  color:#fff;
-}
+/* Responsive tweaks */
+@media(max-width:780px){ .filter-select{ width:200px } }
+@media(max-width:520px){ .filter-select{ width:100% } }
