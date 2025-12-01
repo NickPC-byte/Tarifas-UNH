@@ -2,25 +2,25 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tarifas TUPA – TUSNE</title>
 
   <!-- CSS -->
   <link rel="stylesheet" href="style.css" />
 
   <!-- Bootstrap Icons -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-  <!-- jsPDF & autoTable (para exportar PDF) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- PapaParse & Fuse (CSV + fuzzy search) -->
+  <!-- PapaParse & Fuse (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js"></script>
+
+  <!-- jsPDF + autoTable (para exportar PDF) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.25/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
+
 <header class="site-header">
   <h1>Tarifario TUPA / TUSNE</h1>
   <p class="subtitle">Consulta interactiva de tarifas universitarias</p>
@@ -28,7 +28,7 @@
 
 <div class="container">
 
-  <!-- Controles: buscador + filtros + export -->
+  <!-- Controles -->
   <div class="controls">
 
     <!-- Buscador -->
@@ -36,20 +36,16 @@
       <input id="searchInput" type="text" placeholder="Buscar (tarifa, proceso, unidad, área)..." />
     </div>
 
-    <!-- Selects + export -->
+    <!-- Selects -->
     <div class="filters-wrap">
-
       <select id="unidadFilter" class="filter-select">
         <option value="">Unidad Responsable</option>
       </select>
 
-      <!-- Export PDF button (solo activa si hay una Unidad seleccionada o se exportan todos) -->
-      <button id="exportPdfBtn" class="btn btn-export" title="Exportar PDF (Landscape)">
-        <i class="bi bi-file-earmark-pdf-fill"></i> Exportar PDF
-      </button>
+      <!-- (Se eliminó el filtro proceso según reunión; si quieres volverlo a activar basta con reañadirlo) -->
     </div>
 
-    <!-- Monto (doble slider) -->
+    <!-- Monto -->
     <div class="monto-filter">
       <div class="monto-label">Monto (S/)</div>
 
@@ -64,31 +60,68 @@
       </div>
     </div>
 
-  </div>
+    <!-- Export PDF por unidad (aparece habilitado cuando seleccionas una unidad) -->
+    <div class="export-wrap">
+      <button id="exportPdfBtn" class="btn-export" disabled>
+        <i class="bi bi-file-earmark-arrow-down"></i> Exportar PDF (Unidad)
+      </button>
+    </div>
+
+  </div> <!-- .controls -->
 
   <!-- Estado -->
-  <div id="status" class="status">Cargando...</div>
+  <div id="status" class="status"></div>
 
   <!-- Cards -->
   <div id="cardsContainer" class="cards"></div>
 
   <!-- Paginación -->
   <div id="pagination" class="pagination"></div>
-</div>
+
+</div> <!-- .container -->
 
 <!-- Modal -->
-<div id="modalOverlay" class="modal-overlay hidden">
-  <div class="modal" role="dialog" aria-modal="true">
+<div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
     <!-- Botón cerrar -->
-    <button id="modalClose" class="modal-close" aria-label="Cerrar">
+    <button id="modalClose" class="modal-close" aria-label="Cerrar modal">
       <i class="bi bi-x-circle-fill"></i> Cerrar
     </button>
 
     <!-- Título -->
     <h2 id="modalTitle" class="modal-title"></h2>
 
+    <!-- Mensaje informativo azul fijo (Opción A) -->
+    <div class="info-note">
+      <i class="bi bi-info-circle-fill"></i>
+      <div class="info-text">
+        <strong>El monto mostrado es referencial.</strong>
+        <div class="small">El total a pagar puede incluir comisiones adicionales según el canal de pago (Caja UNH, Banco de la Nación, Caja Huancayo, Niubiz, etc.). Cotejar el monto final en la entidad recaudadora.</div>
+      </div>
+    </div>
+
+    <!-- SELECT DE CANAL DE PAGO (Opción A) -->
+    <div class="payment-row">
+      <label for="paymentSelect"><strong>Elegir canal de pago:</strong></label>
+      <select id="paymentSelect" class="filter-select">
+        <option value="">-- Seleccionar canal --</option>
+        <option value="caja_unh">Caja UNH (S/1.00) *aplica desde S/20</option>
+        <option value="bn_small">Banco de la Nación (S/1.80 para montos ≤ S/144)</option>
+        <option value="bn_large">Banco de la Nación (1.25% para montos > S/144)</option>
+        <option value="caja_huancayo">Caja Huancayo (S/1.00)</option>
+        <option value="niubiz">Niubiz (5.8%)</option>
+      </select>
+
+      <div id="estimatedRow" class="estimated-row hidden">
+        <strong>Total estimado:</strong>
+        <span id="estimatedTotal">S/ 0.00</span>
+      </div>
+    </div>
+
     <!-- Meta con íconos -->
     <div class="modal-meta">
+
       <p>
         <i class="bi bi-building"></i>
         <strong>Centro de costo / Unidad responsable:</strong>
@@ -104,26 +137,23 @@
       <p>
         <i class="bi bi-envelope-fill"></i>
         <strong>Correo:</strong>
-        <a id="modalCorreoLink" href="#" target="_blank" rel="noopener noreferrer">
-          <span id="modalCorreo"></span>
-        </a>
+        <a id="modalCorreoLink" href="#" target="_blank"><span id="modalCorreo"></span></a>
       </p>
 
       <p>
         <i class="bi bi-telephone-fill"></i>
         <strong>Teléfono:</strong>
-        <a id="modalTelefonoLink" href="#" target="_blank" rel="noopener noreferrer">
-          <span id="modalTelefono"></span>
-        </a>
+        <a id="modalTelefonoLink" href="#" target="_blank"><span id="modalTelefono"></span></a>
       </p>
     </div>
 
     <h3 class="req-title">Requisitos</h3>
     <div id="modalRequisitos" class="modal-body"></div>
+
   </div>
 </div>
 
-<!-- Tu script principal -->
-<script src="script.js"></script>
+<!-- Script principal -->
+<script src="script.js" defer></script>
 </body>
 </html>
