@@ -68,11 +68,11 @@
 </div>
 
 <!-- Modal -->
-<div id="modalOverlay" class="modal-overlay hidden">
-    <div class="modal">
+<div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         
         <!-- Botón cerrar -->
-        <button id="modalClose" class="modal-close">
+        <button id="modalClose" class="modal-close" type="button" aria-label="Cerrar">
             <i class="bi bi-x-circle-fill"></i> Cerrar
         </button>
 
@@ -82,37 +82,37 @@
         <!-- Meta con íconos -->
         <div class="modal-meta">
 
-            <p>
+            <p class="meta-row">
                 <i class="bi bi-building"></i>
                 <strong>Centro de costo / Unidad responsable:</strong>
-                <span id="modalUnidad"></span>
+                <span id="modalUnidad" class="meta-val"></span>
             </p>
 
-            <p>
+            <p class="meta-row">
                 <i class="bi bi-diagram-3"></i>
                 <strong>Área encargada:</strong>
-                <span id="modalArea"></span>
+                <span id="modalArea" class="meta-val"></span>
             </p>
 
-            <p>
+            <p class="meta-row">
                 <i class="bi bi-envelope-fill"></i>
                 <strong>Correo:</strong>
-                <a id="modalCorreoLink" href="#" target="_blank">
-                    <span id="modalCorreo"></span>
+                <a id="modalCorreoLink" href="#" target="_blank" rel="noopener noreferrer">
+                    <span id="modalCorreo" class="meta-val"></span>
                 </a>
             </p>
 
-            <p>
+            <p class="meta-row">
                 <i class="bi bi-telephone-fill"></i>
                 <strong>Teléfono:</strong>
-                <a id="modalTelefonoLink" href="#" target="_blank">
-                    <span id="modalTelefono"></span>
+                <a id="modalTelefonoLink" href="#" target="_blank" rel="noopener noreferrer">
+                    <span id="modalTelefono" class="meta-val"></span>
                 </a>
             </p>
         </div>
 
         <h3 class="req-title">Requisitos</h3>
-        <div id="modalRequisitos" class="modal-body"></div>
+        <div id="modalRequisitos" class="modal-body" aria-live="polite"></div>
 
     </div>
 </div>
