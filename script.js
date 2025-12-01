@@ -1,19 +1,19 @@
-/* script.js
+/* script.js corregido para los últimos IDs del HTML
    - PapaParse CSV parsing
-   - Fuse.js fuzzy search (if available)
-   - double-range slider for monto
-   - pagination (21 per page)
-   - modal with requisitos
-   - export to PDF (jsPDF + autoTable)
+   - Fuse.js fuzzy search (si está disponible)
+   - doble slider para monto (minMonto / maxMonto)
+   - paginación (21 por página)
+   - modal con requisitos + unidad + area + contactos
+   - calculadora de comisiones por canal
+   - orden: TUPA primero
 */
 
-// --- CONFIG: CSV public URL (tu hoja publicada a CSV)
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
 
-// DOM elements
+// Elementos del DOM (IDs según tu último HTML)
 const searchInput = document.getElementById("searchInput");
 const unidadFilter = document.getElementById("unidadFilter");
-const exportPdfBtn = document.getElementById("exportPdfBtn");
+const procesoFilter = document.getElementById("procesoFilter");
 const cardsContainer = document.getElementById("cardsContainer");
 const statusEl = document.getElementById("status");
 const paginationEl = document.getElementById("pagination");
@@ -23,7 +23,7 @@ const maxMontoInput = document.getElementById("maxMonto");
 const minMontoValue = document.getElementById("minMontoValue");
 const maxMontoValue = document.getElementById("maxMontoValue");
 
-// Modal
+// Modal elements
 const modalOverlay = document.getElementById("modalOverlay");
 const modalTitle = document.getElementById("modalTitle");
 const modalUnidad = document.getElementById("modalUnidad");
@@ -31,7 +31,13 @@ const modalArea = document.getElementById("modalArea");
 const modalCorreo = document.getElementById("modalCorreo");
 const modalTelefono = document.getElementById("modalTelefono");
 const modalRequisitos = document.getElementById("modalRequisitos");
+
 const modalCloseBtn = document.getElementById("modalClose");
+const paymentChannel = document.getElementById("paymentChannel");
+const commissionBox = document.getElementById("commissionBox");
+const calcMonto = document.getElementById("calcMonto");
+const calcCommission = document.getElementById("calcCommission");
+const calcTotal = document.getElementById("calcTotal");
 
 // Data
 let rawData = [];
@@ -41,7 +47,7 @@ let filteredData = [];
 let pageSize = 21;
 let currentPage = 1;
 
-// Utility: normalize header names
+// UTILIDADES
 function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
 
 function parseMonto(v){
@@ -65,7 +71,7 @@ function escapeHTML(s){
   return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
 }
 
-// Map CSV row robustly
+// Mapear fila CSV a modelo consistente
 function mapRow(row){
   const normalized = {};
   Object.keys(row || {}).forEach(k => normalized[keyify(k)] = (row[k] || "").toString().trim());
@@ -85,7 +91,7 @@ function mapRow(row){
   return out;
 }
 
-// Load CSV via PapaParse
+// CARGA CSV con PapaParse
 function loadCSV(url){
   statusEl.textContent = "Cargando datos...";
   if(typeof Papa === "undefined"){
@@ -105,8 +111,7 @@ function loadCSV(url){
         statusEl.textContent = "No se encontraron registros.";
         return;
       }
-
-      // Fuse for fuzzy search if available
+      // Inicializar búsqueda Fuse si está disponible
       if(typeof Fuse !== "undefined"){
         fuse = new Fuse(mappedData, {
           keys: [
@@ -129,12 +134,12 @@ function loadCSV(url){
     },
     error: err => {
       console.error("PapaParse error:", err);
-      statusEl.textContent = "Error cargando datos. Revisa la consola.";
+      statusEl.textContent = "Error cargando datos. Revisa consola.";
     }
   });
 }
 
-// Init monto slider
+// Inicializar rango de monto y sliders
 function initMontoRange(){
   const montos = mappedData.map(r => r.monto || 0);
   const min = Math.min(...montos);
@@ -170,34 +175,41 @@ function onSliderChange(){
   applyAllFilters();
 }
 
-// Populate Unidad select
+// Poblar selects
 function populateFilters(){
+  // unidad and proceso unique sorted
   const unidades = Array.from(new Set(mappedData.map(d => d.unidad).filter(Boolean))).sort();
+  const procesos = Array.from(new Set(mappedData.map(d => d.proceso).filter(Boolean))).sort();
+
   unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
+  procesoFilter.innerHTML = `<option value="">Proceso</option>`;
+
   unidades.forEach(u => {
     const opt = document.createElement("option");
     opt.value = u; opt.textContent = u;
     unidadFilter.appendChild(opt);
   });
+  procesos.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p; opt.textContent = p;
+    procesoFilter.appendChild(opt);
+  });
 
-  unidadFilter.onchange = () => {
-    currentPage = 1;
-    // enable/disable export button
-    exportPdfBtn.disabled = !Boolean(unidadFilter.value);
-    applyAllFilters();
-  };
+  unidadFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
+  procesoFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
 }
 
-// Apply search + filters + monto + ordering
+// Aplica búsqueda + filtros + monto + orden + paginación
 function applyAllFilters(){
   const q = (searchInput.value || "").trim();
   const unidad = unidadFilter.value;
+  const proceso = procesoFilter.value;
   const minV = Math.min(Number(minMontoInput.value), Number(maxMontoInput.value));
   const maxV = Math.max(Number(minMontoInput.value), Number(maxMontoInput.value));
 
   let results = mappedData.slice();
 
-  // fuzzy search
+  // Búsqueda con Fuse si disponible y si query >=2 chars
   if(q.length >= 2 && fuse){
     const res = fuse.search(q);
     results = res.map(r => r.item);
@@ -211,12 +223,14 @@ function applyAllFilters(){
     );
   }
 
+  // filtros
   if(unidad) results = results.filter(r => r.unidad === unidad);
+  if(proceso) results = results.filter(r => r.proceso === proceso);
 
-  // monto filter
+  // monto
   results = results.filter(r => (r.monto || 0) >= minV && (r.monto || 0) <= maxV);
 
-  // TUPA first ordering
+  // Orden: TUPA primero
   results.sort((a,b) => {
     const ao = ((a.origen||"") + "").toLowerCase();
     const bo = ((b.origen||"") + "").toLowerCase();
@@ -229,7 +243,7 @@ function applyAllFilters(){
   renderPage(1);
 }
 
-// Pagination & render
+// Render paginated page
 function renderPage(page){
   currentPage = page;
   const total = filteredData.length;
@@ -241,30 +255,31 @@ function renderPage(page){
   const end = start + pageSize;
   const pageItems = filteredData.slice(start, end);
 
-  renderCards(pageItems);
+  renderCards(pageItems, start);
   renderPagination(totalPages, page);
+  // scroll to top of container
   window.scrollTo({ top: document.querySelector(".container").offsetTop - 10, behavior: "smooth" });
 }
 
-function renderCards(items){
+// Render cards
+function renderCards(items, globalStartIndex = 0){
   cardsContainer.innerHTML = "";
   if(!items || items.length === 0){
     cardsContainer.innerHTML = `<div class="status">No se encontraron resultados.</div>`;
     return;
   }
 
-  items.forEach(item => {
+  items.forEach((item, idx) => {
     const div = document.createElement("div");
     div.className = "card";
 
-    const montoDisplay = item.monto ? item.monto.toString() : (item.montoRaw || "0");
-
+    // PROCESO as title, TARIFA and MONTO in meta
     div.innerHTML = `
-      <div class="tag-origen">Origen: ${escapeHTML(item.origen || "")}</div>
-      <div class="card-title">${escapeHTML(item.proceso || (item.tarifa || "—"))}</div>
+      <div class="tag-origen">${escapeHTML(item.origen || "")}</div>
+      <div class="card-title">${escapeHTML(item.proceso || "—")}</div>
 
       <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa || "—")}</div>
-      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(montoDisplay)}</div>
+      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML((item.monto || 0).toString())}</div>
       <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad || "—")}</div>
       <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area || "—")}</div>
 
@@ -275,6 +290,7 @@ function renderCards(items){
       </div>
     `;
 
+    // attach listener for modal button
     const reqBtn = div.querySelector(".btn-requisitos");
     reqBtn.addEventListener("click", () => {
       const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
@@ -285,7 +301,7 @@ function renderCards(items){
   });
 }
 
-// Pagination UI
+// Render pagination UI
 function renderPagination(totalPages, current){
   paginationEl.innerHTML = "";
   if(totalPages <= 1) return;
@@ -298,6 +314,7 @@ function renderPagination(totalPages, current){
     return b;
   };
 
+  // first, prev
   paginationEl.appendChild(createBtn("«", "page-btn", () => renderPage(1)));
   paginationEl.appendChild(createBtn("‹", "page-btn", () => renderPage(Math.max(1, current-1))));
 
@@ -317,30 +334,90 @@ function renderPagination(totalPages, current){
   paginationEl.appendChild(createBtn("»", "page-btn", () => renderPage(totalPages)));
 }
 
-// Modal functions
+// =============================
+//   CALCULO DE COMISIONES
+// =============================
+function computeCommission(amount, channel){
+  amount = Number(amount) || 0;
+  let commission = 0;
+
+  switch(channel){
+    case "caja_unh":
+      // aplica si monto >= 20
+      commission = amount >= 20 ? 1.00 : 0;
+      break;
+    case "bn_pequeno":
+      // si monto dentro 0.10 - 144 -> S/1.80
+      commission = (amount >= 0.1 && amount <= 144) ? 1.80 : 0;
+      break;
+    case "bn_grande":
+      // mayor a 144 -> 1.25%
+      commission = amount > 144 ? Number((amount * 0.0125).toFixed(2)) : 0;
+      break;
+    case "caja_huancayo":
+      commission = 1.00;
+      break;
+    case "niubiz":
+      commission = Number((amount * 0.058).toFixed(2)); // 5.8%
+      break;
+    default:
+      commission = 0;
+  }
+
+  return Math.round((commission + Number.EPSILON) * 100) / 100;
+}
+
+function updateCommissionUI(amount, channel){
+  if(!channel){
+    commissionBox.classList.add("hidden");
+    return;
+  }
+  const commission = computeCommission(amount, channel);
+  const total = Math.round(((Number(amount || 0) + commission) + Number.EPSILON) * 100) / 100;
+
+  calcMonto.textContent = `S/ ${Number(amount || 0).toFixed(2)}`;
+  calcCommission.textContent = `S/ ${commission.toFixed(2)}`;
+  calcTotal.textContent = `S/ ${total.toFixed(2)}`;
+
+  commissionBox.classList.remove("hidden");
+}
+
+// =============================
+//   NUEVO MODAL ELEGANTE (CORREGIDO)
+// =============================
 function openModal(item){
-  modalTitle.textContent = item.tarifa || item.proceso || "Detalle";
+
+  // TÍTULO
+  modalTitle.textContent = item.proceso || item.tarifa || "Detalle";
+
+  // UNIDAD / ÁREA (solo texto dentro del span)
   modalUnidad.textContent = item.unidad || "—";
   modalArea.textContent = item.area || "—";
 
+  // CORREO (solo texto dentro del span + link fuera)
   if(item.correo){
     modalCorreo.textContent = item.correo;
-    document.getElementById("modalCorreoLink").href = `mailto:${item.correo}`;
+    const link = document.getElementById("modalCorreoLink");
+    if(link) link.href = `mailto:${item.correo}`;
   } else {
     modalCorreo.textContent = "—";
-    document.getElementById("modalCorreoLink").href = "#";
+    const link = document.getElementById("modalCorreoLink");
+    if(link) link.href = "#";
   }
 
+  // TELÉFONO (solo texto dentro the span + link outside)
   const cel = (item.celular || "").replace(/\D/g,"");
   if(cel){
     modalTelefono.textContent = cel;
-    document.getElementById("modalTelefonoLink").href = `https://wa.me/51${cel}`;
+    const telLink = document.getElementById("modalTelefonoLink");
+    if(telLink) telLink.href = `https://wa.me/51${cel}`;
   } else {
     modalTelefono.textContent = "—";
-    document.getElementById("modalTelefonoLink").href = "#";
+    const telLink = document.getElementById("modalTelefonoLink");
+    if(telLink) telLink.href = "#";
   }
 
-  // requisitos -> list
+  // REQUISITOS -> formato en viñetas
   let text = item.requisitos || "No especificado";
   let parts = [];
   if(text.includes("\n")) parts = text.split(/\n+/);
@@ -357,161 +434,43 @@ function openModal(item){
   });
   modalRequisitos.appendChild(ul);
 
+  // reset payment channel selector and commission box
+  if(paymentChannel) paymentChannel.value = "";
+  commissionBox.classList.add("hidden");
+
+  // show modal
   modalOverlay.classList.remove("hidden");
+  modalOverlay.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
+
+  // set the monto displayed for calculations
+  // ensure we have numeric amount
+  const amount = Number(item.monto || 0);
+  if(paymentChannel){
+    // when channel changes update UI
+    paymentChannel.onchange = () => {
+      updateCommissionUI(amount, paymentChannel.value);
+    };
+  }
 }
 
+// Close modal
 function closeModal(){
   modalOverlay.classList.add("hidden");
+  modalOverlay.setAttribute("aria-hidden","true");
   document.body.style.overflow = "";
 }
 
+// close handlers
 if(modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
 
-// Search and input handlers
+// search + inputs handlers
 searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+minMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+maxMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
 
-// slider listeners already set in initMontoRange
-
-// ========= PDF EXPORT (Unidad) =========
-async function exportFilteredUnitPDF(){
-  const unidad = unidadFilter.value;
-  if(!unidad) return alert("Seleccione una Unidad Responsable antes de exportar.");
-
-  // gather items for this unidad (respect current monto & search)
-  // We'll reuse current filteredData, but ensure it's filtered by unidad
-  const items = mappedData.filter(d => d.unidad === unidad);
-
-  if(items.length === 0){
-    return alert("No se encontraron tarifas para la unidad seleccionada.");
-  }
-
-  // Create jsPDF instance
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let cursorY = 40;
-
-  // Header (you can later add logo image here using doc.addImage when logo is available)
-  // Title
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text("UNIVERSIDAD - Tarifario (Reporte)", 40, cursorY);
-  cursorY += 18;
-
-  // Unidad line
-  doc.setFontSize(12);
-  doc.text(`Unidad Responsable: ${unidad}`, 40, cursorY);
-  cursorY += 22;
-
-  // Aviso azul (comisiones) — box
-  const aviso = "El monto mostrado es referencial. El total a pagar puede incluir comisiones según el canal de pago (Caja UNH, Banco de la Nación, Caja Huancayo, Niubiz, etc.). Cotejar el monto final en la entidad recaudadora.";
-  const avisoBoxHeight = 60;
-  doc.setFillColor(220,235,250); // light blue
-  doc.roundedRect(40, cursorY, pageWidth - 80, avisoBoxHeight, 6, 6, "F");
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(10);
-  doc.text(doc.splitTextToSize(aviso, pageWidth - 100), 50, cursorY + 18);
-  cursorY += avisoBoxHeight + 14;
-
-  // Table header + rows via autoTable
-  // Prepare table columns
-  const tableColumns = [
-    { header: "Proceso", dataKey: "proceso" },
-    { header: "Tarifa", dataKey: "tarifa" },
-    { header: "Monto (S/)", dataKey: "monto" },
-    { header: "Área", dataKey: "area" },
-    { header: "Origen", dataKey: "origen" }
-  ];
-
-  const tableBody = items.map(it => ({
-    proceso: it.proceso || "—",
-    tarifa: it.tarifa || "—",
-    monto: (it.monto || 0).toString(),
-    area: it.area || "—",
-    origen: it.origen || "—"
-  }));
-
-  // Use autoTable
-  doc.autoTable({
-    startY: cursorY,
-    head: [tableColumns.map(c => c.header)],
-    body: tableBody.map(row => tableColumns.map(c => row[c.dataKey])),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [3,56,102], textColor: 255 },
-    margin: { left: 40, right: 40 },
-    willDrawCell: (data) => {},
-    didDrawPage: (data) => {}
-  });
-
-  // After table, add requisitos per item (each item heading + bullets)
-  let afterTableY = doc.autoTable.previous ? doc.autoTable.previous.finalY + 16 : doc.lastAutoTable ? doc.lastAutoTable.finalY + 16 : doc.internal.pageSize.getHeight() - 40;
-  if(afterTableY > doc.internal.pageSize.getHeight() - 120){
-    doc.addPage();
-    afterTableY = 40;
-  }
-
-  doc.setFontSize(12);
-  doc.setTextColor(3,56,102);
-  doc.text("Requisitos por servicio", 40, afterTableY);
-  afterTableY += 16;
-  doc.setFontSize(10);
-  doc.setTextColor(40,40,40);
-
-  for(const it of items){
-    // title line
-    const title = `${it.proceso || "—"} — ${it.tarifa || "—"}`;
-    const splitted = doc.splitTextToSize(title, doc.internal.pageSize.getWidth() - 80);
-    if(afterTableY + 30 > doc.internal.pageSize.getHeight() - 60){
-      doc.addPage();
-      afterTableY = 40;
-    }
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(splitted, 44, afterTableY);
-    afterTableY += (splitted.length * 12);
-
-    // requisitos to list
-    doc.setFont(undefined, "normal");
-    const text = it.requisitos || "No especificado";
-    // split into bullets
-    let parts = [];
-    if(text.includes("\n")) parts = text.split(/\n+/);
-    else if(text.includes(";")) parts = text.split(/\s*;\s*/);
-    else if(text.includes(".") && text.length > 40) parts = text.split(/\.\s+/).filter(Boolean);
-    else parts = [text];
-
-    parts.forEach(p => {
-      const bullet = "• " + p.trim();
-      const lines = doc.splitTextToSize(bullet, doc.internal.pageSize.getWidth() - 100);
-      if(afterTableY + (lines.length * 12) > doc.internal.pageSize.getHeight() - 60){
-        doc.addPage();
-        afterTableY = 40;
-      }
-      doc.text(lines, 54, afterTableY);
-      afterTableY += lines.length * 12;
-    });
-
-    afterTableY += 8;
-  }
-
-  // Footer: generated date
-  const genDate = new Date().toLocaleString();
-  doc.setFontSize(9);
-  doc.setTextColor(100);
-  doc.text(`Reporte generado: ${genDate}`, 40, doc.internal.pageSize.getHeight() - 30);
-
-  // Save file
-  const filename = `tarifario_${unidad.replace(/\s+/g,"_").toLowerCase()}_${(new Date()).toISOString().slice(0,10)}.pdf`;
-  doc.save(filename);
-}
-
-// export button handler
-exportPdfBtn.addEventListener("click", exportFilteredUnitPDF);
-
-// start loading CSV
+// start
 if(!CSV_URL){
   statusEl.textContent = "No se ha configurado la URL del CSV.";
 } else {
