@@ -1,17 +1,18 @@
-/* script.js: widget TUPA/TUSNE + export PDF (landscape) + modal + paginación
-   Dependencias (ya incluidas en index.html):
-   - PapaParse
-   - Fuse.js (opcional)
-   - jsPDF + autoTable
+/* script.js
+   - PapaParse CSV parsing
+   - Fuse.js fuzzy search (si está disponible)
+   - doble slider para monto (minMonto / maxMonto)
+   - paginación (21 por página)
+   - modal con requisitos + unidad + area + contactos
+   - select de canales (Opción A) y cálculo de comisiones
+   - export PDF por Unidad (landscape A4)
 */
 
-const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
 
 // DOM
 const searchInput = document.getElementById("searchInput");
 const unidadFilter = document.getElementById("unidadFilter");
-const exportPdfBtn = document.getElementById("exportPdfBtn");
 const cardsContainer = document.getElementById("cardsContainer");
 const statusEl = document.getElementById("status");
 const paginationEl = document.getElementById("pagination");
@@ -21,7 +22,9 @@ const maxMontoInput = document.getElementById("maxMonto");
 const minMontoValue = document.getElementById("minMontoValue");
 const maxMontoValue = document.getElementById("maxMontoValue");
 
-// Modal
+const exportPdfBtn = document.getElementById("exportPdfBtn");
+
+// Modal elements
 const modalOverlay = document.getElementById("modalOverlay");
 const modalTitle = document.getElementById("modalTitle");
 const modalUnidad = document.getElementById("modalUnidad");
@@ -31,7 +34,11 @@ const modalTelefono = document.getElementById("modalTelefono");
 const modalRequisitos = document.getElementById("modalRequisitos");
 const modalCloseBtn = document.getElementById("modalClose");
 
-// Data containers
+const paymentSelect = document.getElementById("paymentSelect");
+const estimatedRow = document.getElementById("estimatedRow");
+const estimatedTotal = document.getElementById("estimatedTotal");
+
+// State
 let rawData = [];
 let mappedData = [];
 let fuse = null;
@@ -39,7 +46,7 @@ let filteredData = [];
 let pageSize = 21;
 let currentPage = 1;
 
-// Helpers
+// UTIL
 function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
 
 function parseMonto(v){
@@ -69,8 +76,8 @@ function mapRow(row){
   Object.keys(row || {}).forEach(k => normalized[keyify(k)] = (row[k] || "").toString().trim());
 
   const out = {};
-  out.origen = normalized["tupa/tusne"] || normalized["origen"] || "";
-  out.unidad = normalized["centro de costo"] || normalized["unidad responsable"] || "";
+  out.origen = normalized["tupa/tusne"] || normalized["tupa/tusne (origen de la tarifa)"] || normalized["origen"] || "";
+  out.unidad = normalized["centro de costo"] || normalized["unidad responsable"] || normalized["centro de costo (unidad de organizacion encargada de brindar el servicio)"] || "";
   out.cxc = normalized["cxc"] || "";
   out.area = normalized["área responsable de brindar el servicio"] || normalized["area responsable de brindar el servicio"] || normalized["area"] || out.unidad;
   out.proceso = normalized["proceso"] || "";
@@ -88,7 +95,7 @@ function loadCSV(url){
   statusEl.textContent = "Cargando datos desde Google Sheets...";
   if(typeof Papa === "undefined"){
     statusEl.textContent = "Error: PapaParse no está cargado.";
-    console.error("PapaParse missing");
+    console.error("PapaParse no encontrado.");
     return;
   }
 
@@ -103,36 +110,35 @@ function loadCSV(url){
         statusEl.textContent = "No se encontraron registros en la hoja.";
         return;
       }
-      initFuse();
+      // set up Fuse if available
+      if(typeof Fuse !== "undefined"){
+        fuse = new Fuse(mappedData, {
+          keys: [
+            { name: "tarifa", weight: 0.9 },
+            { name: "proceso", weight: 0.85 },
+            { name: "unidad", weight: 0.7 },
+            { name: "area", weight: 0.5 }
+          ],
+          threshold: 0.35
+        });
+      } else {
+        fuse = null;
+      }
+
       initMontoRange();
       populateFilters();
       applyAllFilters();
+
       statusEl.classList.add("hidden");
     },
     error: err => {
       console.error("PapaParse error:", err);
-      statusEl.textContent = "Error cargando datos. Revisa consola.";
+      statusEl.textContent = "Error cargando datos. Revisa la consola.";
     }
   });
 }
 
-function initFuse(){
-  if(typeof Fuse !== "undefined"){
-    fuse = new Fuse(mappedData, {
-      keys: [
-        {name: "proceso", weight: 0.9},
-        {name: "tarifa", weight: 0.8},
-        {name: "unidad", weight: 0.7},
-        {name: "area", weight: 0.5}
-      ],
-      threshold: 0.35
-    });
-  } else {
-    fuse = null;
-  }
-}
-
-// Monto slider bounds
+// Init monto slider bounds
 function initMontoRange(){
   const montos = mappedData.map(r => r.monto || 0);
   const min = Math.min(...montos);
@@ -167,19 +173,27 @@ function onSliderChange(){
   applyAllFilters();
 }
 
-// populate unidad filter
+// Populate unidad filter
 function populateFilters(){
-  const unidades = Array.from(new Set(mappedData.map(d => d.unidad).filter(Boolean))).sort();
+  const unidades = Array.from(new Set(mappedData.map(r => r.unidad).filter(Boolean))).sort();
   unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
   unidades.forEach(u => {
-    const opt = document.createElement("option");
-    opt.value = u; opt.textContent = u;
-    unidadFilter.appendChild(opt);
+    const o = document.createElement("option");
+    o.value = u; o.textContent = u;
+    unidadFilter.appendChild(o);
   });
-  unidadFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
+
+  unidadFilter.onchange = () => {
+    // toggle export button
+    exportPdfBtn.disabled = !unidadFilter.value;
+    currentPage = 1;
+    applyAllFilters();
+  };
+
+  exportPdfBtn.addEventListener("click", () => exportUnitPDF());
 }
 
-// Apply search + filters + monto + ordering
+// Apply all filters + search + monto + ordering
 function applyAllFilters(){
   const q = (searchInput.value || "").trim();
   const unidad = unidadFilter.value;
@@ -188,27 +202,30 @@ function applyAllFilters(){
 
   let results = mappedData.slice();
 
+  // fuzzy search
   if(q.length >= 2 && fuse){
-    const res = fuse.search(q);
-    results = res.map(r => r.item);
-  } else if(q.length >= 2){
+    const fuseRes = fuse.search(q);
+    results = fuseRes.map(r => r.item);
+  } else if(q.length >= 2) {
     const ql = q.toLowerCase();
     results = results.filter(r =>
-      (r.proceso || "").toLowerCase().includes(ql) ||
       (r.tarifa || "").toLowerCase().includes(ql) ||
+      (r.proceso || "").toLowerCase().includes(ql) ||
       (r.unidad || "").toLowerCase().includes(ql) ||
       (r.area || "").toLowerCase().includes(ql)
     );
   }
 
+  // unidad filter
   if(unidad) results = results.filter(r => r.unidad === unidad);
 
+  // monto filter
   results = results.filter(r => (r.monto || 0) >= minV && (r.monto || 0) <= maxV);
 
-  // TUPA first
+  // Order: TUPA first
   results.sort((a,b) => {
-    const ao = ((a.origen||"") + "").toLowerCase();
-    const bo = ((b.origen||"") + "").toLowerCase();
+    const ao = (a.origen || "").toString().toLowerCase();
+    const bo = (b.origen || "").toString().toLowerCase();
     if(ao === "tupa" && bo !== "tupa") return -1;
     if(ao !== "tupa" && bo === "tupa") return 1;
     return 0;
@@ -218,7 +235,7 @@ function applyAllFilters(){
   renderPage(1);
 }
 
-// Pagination / render
+// Pagination & rendering
 function renderPage(page){
   currentPage = page;
   const total = filteredData.length;
@@ -247,7 +264,7 @@ function renderCards(items){
     div.className = "card";
 
     div.innerHTML = `
-      <div class="tag-origen">${escapeHTML(item.origen || "")}</div>
+      <div class="tag-origen">Origen: ${escapeHTML(item.origen || "")}</div>
       <div class="card-title">${escapeHTML(item.proceso || "—")}</div>
 
       <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa || "—")}</div>
@@ -263,18 +280,15 @@ function renderCards(items){
     `;
 
     const reqBtn = div.querySelector(".btn-requisitos");
-    if(reqBtn){
-      reqBtn.addEventListener("click", () => {
-        const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
-        openModal(it);
-      });
-    }
+    reqBtn.addEventListener("click", () => {
+      const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
+      openModal(it);
+    });
 
     cardsContainer.appendChild(div);
   });
 }
 
-// Pagination UI
 function renderPagination(totalPages, current){
   paginationEl.innerHTML = "";
   if(totalPages <= 1) return;
@@ -306,11 +320,15 @@ function renderPagination(totalPages, current){
   paginationEl.appendChild(createBtn("»", "page-btn", () => renderPage(totalPages)));
 }
 
-// Modal open/close
+// Modal open/close & populate
 function openModal(item){
-  modalTitle.textContent = item.tarifa || item.proceso || "Detalle";
+  modalTitle.textContent = item.tarifa ? `${item.tarifa}` : (item.proceso || "Detalle");
 
-  // populate meta (plain text in spans; links are outside)
+  // reset payment select/estimate
+  paymentSelect.value = "";
+  estimatedRow.classList.add("hidden");
+  estimatedTotal.textContent = "S/ 0.00";
+
   modalUnidad.textContent = item.unidad || "—";
   modalArea.textContent = item.area || "—";
 
@@ -333,7 +351,7 @@ function openModal(item){
     document.getElementById("modalTelefonoLink").href = "#";
   }
 
-  // Requisitos -> list
+  // requisitos -> build list
   let text = item.requisitos || "No especificado";
   let parts = [];
   if(text.includes("\n")) parts = text.split(/\n+/);
@@ -344,127 +362,182 @@ function openModal(item){
   modalRequisitos.innerHTML = "";
   const ul = document.createElement("ul");
   parts.forEach(p => {
-    const li = document.createElement("li"); li.textContent = p.trim();
+    const li = document.createElement("li");
+    li.textContent = p.trim();
     ul.appendChild(li);
   });
   modalRequisitos.appendChild(ul);
 
+  // show
   modalOverlay.classList.remove("hidden");
+  modalOverlay.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
+
+  // Save current opened item (for calculation)
+  modalOverlay.currentItem = item;
 }
 
+// Close modal
 function closeModal(){
   modalOverlay.classList.add("hidden");
+  modalOverlay.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
+  // clear currentItem
+  modalOverlay.currentItem = null;
 }
 
-if(modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
+// Calculation for payment channels
+function calculateEstimate(item, channel){
+  const monto = Number(item.monto || 0);
+  let total = monto;
+  let note = "";
 
-// Search and inputs
-searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
-minMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
-maxMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+  switch(channel){
+    case "caja_unh":
+      if(monto < 20){
+        note = "Caja UNH aplica desde S/20. Consulte a la entidad recaudadora.";
+        total = null;
+      } else {
+        total = monto + 1.00;
+      }
+      break;
 
-// Export PDF (landscape) - Table style institucional
-exportPdfBtn.addEventListener("click", () => {
-  // choose items to export: if unidad selected, filter by that; else export filteredData
-  const unidad = unidadFilter.value;
-  let items = filteredData.slice();
-  if(unidad){
-    items = items.filter(it => it.unidad === unidad);
+    case "bn_small":
+      total = monto + 1.80;
+      break;
+
+    case "bn_large":
+      total = monto + (monto * 0.0125);
+      break;
+
+    case "caja_huancayo":
+      total = monto + 1.00;
+      break;
+
+    case "niubiz":
+      total = monto + (monto * 0.058);
+      break;
+
+    default:
+      total = null;
   }
 
-  if(!items || items.length === 0){
-    alert("No hay registros para exportar con los filtros actuales.");
+  return { total: total === null ? null : Number(total.toFixed(2)), note };
+}
+
+// Payment select change -> show estimate
+paymentSelect.addEventListener("change", () => {
+  const it = modalOverlay.currentItem || null;
+  if(!it) return;
+
+  const channel = paymentSelect.value;
+  if(!channel){
+    estimatedRow.classList.add("hidden");
+    estimatedTotal.textContent = "S/ 0.00";
     return;
   }
 
-  // Use jsPDF (UMD)
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+  const res = calculateEstimate(it, channel);
+  if(res.total === null){
+    estimatedRow.classList.remove("hidden");
+    estimatedTotal.textContent = res.note;
+  } else {
+    estimatedRow.classList.remove("hidden");
+    estimatedTotal.textContent = `S/ ${res.total.toFixed(2)}`;
+  }
+});
 
-  // Header institucional
-  const pageWidth = doc.internal.pageSize.getWidth();
-  doc.setFillColor(0, 56, 102); // azul oscuro
-  doc.rect(0, 0, pageWidth, 48, "F");
-  doc.setFontSize(16);
-  doc.setTextColor(255,255,255);
-  doc.text("Tarifario TUPA / TUSNE - Reporte", 18, 33);
+// Event listeners for modal close
+if(modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
+modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
+document.addEventListener("keydown", (e) => { if(e.key === "Escape") closeModal(); });
 
-  // Small notice below header
+// Search and inputs
+searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+
+// Slider listeners already attached in initMontoRange
+
+// Export PDF for selected unidad (landscape A4)
+function exportUnitPDF(){
+  const unidad = unidadFilter.value;
+  if(!unidad){
+    alert("Selecciona una Unidad Responsable para exportar el PDF.");
+    return;
+  }
+
+  // Filter mappedData for unidad and vigentes (filtered by nothing else)
+  const rows = mappedData.filter(r => r.unidad === unidad);
+
+  if(!rows.length){
+    alert("No se encontraron registros para la unidad seleccionada.");
+    return;
+  }
+
+  // Prepare table rows: Proceso | Tarifa | Monto | Unidad | Requisitos
+  const doc = new jspdf.jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  const headerText = [
+    "UNIVERSIDAD NACIONAL DE HUANCAVELICA - Tarifario (Reporte)",
+    `Unidad Responsable: ${unidad}`,
+    "El monto mostrado es referencial. El total a pagar puede incluir comisiones adicionales según el canal de pago (Caja UNH, Banco de la Nación, Caja Huancayo, Niubiz, etc.). Cotejar el monto final en la entidad recaudadora."
+  ];
+
+  let y = 20;
+  doc.setFontSize(12);
+  doc.setTextColor(0, 51, 102);
+  doc.setFont(undefined, "bold");
+  doc.text(headerText[0], 40, y);
   doc.setFontSize(10);
-  doc.setTextColor(20,20,20);
-  doc.text("Valores son estimados. Verifique cobros finales en la entidad recaudadora.", 18, 64);
+  doc.setFont(undefined, "normal");
+  y += 18;
+  doc.text(headerText[1], 40, y);
+  y += 16;
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text(headerText[2], 40, y);
 
-  // Prepare table columns (requisitos column wide ~45% of content width)
-  const marginLeft = 18;
-  const usableWidth = pageWidth - marginLeft*2;
-  const colWidths = {
-    proceso: Math.round(usableWidth * 0.18),
-    tarifa: Math.round(usableWidth * 0.16),
-    monto: Math.round(usableWidth * 0.09),
-    area: Math.round(usableWidth * 0.12),
-    origen: Math.round(usableWidth * 0.10),
-    requisitos: Math.round(usableWidth * 0.35) // ≈45% originally; adjusted to fit
-  };
-
-  // autoTable columns
-  const columns = [
+  // autoTable data
+  const tableColumns = [
     { header: "Proceso", dataKey: "proceso" },
     { header: "Tarifa", dataKey: "tarifa" },
     { header: "Monto (S/)", dataKey: "monto" },
-    { header: "Área", dataKey: "area" },
-    { header: "Origen", dataKey: "origen" },
-    { header: "Requisitos", dataKey: "requisitos" },
+    { header: "Unidad", dataKey: "unidad" },
+    { header: "Requisitos", dataKey: "requisitos" }
   ];
 
-  // build rows
-  const rows = items.map(it => ({
-    proceso: it.proceso || "—",
-    tarifa: it.tarifa || "—",
-    monto: (it.monto || 0).toString(),
-    area: it.area || "—",
-    origen: it.origen || "—",
-    requisitos: doc.splitTextToSize(it.requisitos || "No especificado", colWidths.requisitos - 8)
+  const tableData = rows.map(r => ({
+    proceso: r.proceso || "-",
+    tarifa: r.tarifa || "-",
+    monto: (r.monto || 0).toFixed(2),
+    unidad: r.unidad || "-",
+    requisitos: (r.requisitos || "-").replace(/\n/g, " ; ")
   }));
 
-  // autoTable options - styles for institutional look
   doc.autoTable({
-    startY: 86,
-    head: [columns.map(c => c.header)],
-    body: rows.map(r => [r.proceso, r.tarifa, r.monto, r.area, r.origen, r.requisitos]),
-    styles: { font: "helvetica", fontSize: 10, cellPadding: 6 },
-    headStyles: { fillColor: [0,56,102], textColor: 255, halign: "center", fontStyle: "bold" },
+    startY: y + 12,
+    head: [tableColumns.map(c => c.header)],
+    body: tableData.map(row => tableColumns.map(c => row[c.dataKey])),
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [0, 51, 102], textColor: 255, halign: 'left' },
     columnStyles: {
-      0: { cellWidth: colWidths.proceso },
-      1: { cellWidth: colWidths.tarifa },
-      2: { cellWidth: colWidths.monto, halign: "right" },
-      3: { cellWidth: colWidths.area },
-      4: { cellWidth: colWidths.origen },
-      5: { cellWidth: colWidths.requisitos }
+      4: { cellWidth: 240 } // make Requisitos column wide
     },
-    margin: { left: marginLeft, right: marginLeft },
-    didDrawPage: (dataArg) => {
-      // footer with page number
-      const pageCount = doc.internal.getNumberOfPages();
-      const page = doc.internal.getCurrentPageInfo().pageNumber;
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text(`Página ${page} / ${pageCount}`, pageWidth - marginLeft - 80, doc.internal.pageSize.getHeight() - 10);
-    },
-    showHead: "everyPage",
-    theme: "grid",
-    willDrawCell: function() {}
+    margin: { left: 40, right: 40 }
   });
 
-  // Download
-  doc.save(`Tarifario_UNH_${(unidad||"Todos")}.pdf`);
-});
+  // Save
+  const safeName = unidad.replace(/\s+/g, "_").substring(0,40);
+  doc.save(`Tarifario_${safeName}.pdf`);
+}
 
-// start
+// Initialize
 if(!CSV_URL){
   statusEl.textContent = "No se ha configurado la URL del CSV.";
 } else {
   loadCSV(CSV_URL);
 }
+
+// Additional handlers
+minMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+maxMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+
