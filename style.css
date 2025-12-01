@@ -222,138 +222,170 @@ body{
 .btn-mail{ background:var(--azul-oscuro) }
 .btn-ws{ background:#25D366 }
 
-/* MODAL -------------------- */
+/* ============================
+   MODAL — DISEÑO OPTIMIZADO
+   ============================ */
+
 .modal-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:9999;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
 }
 
 .modal{
-  background:#ffffff;
-  width:100%;
-  max-width:700px;
-  border-radius:16px;
-  padding:26px;
-  box-shadow:0 12px 36px rgba(0,0,0,0.20);
-  position:relative;
-  animation:fadeInModal .25s ease;
+  background: #ffffff;
+  width: 100%;
+  max-width: 720px;
+  border-radius: 18px;
+  padding: 30px 28px;
+  box-shadow: 0 14px 42px rgba(0,0,0,0.25);
+  position: relative;
+
+  /* Animación suave */
+  animation: modalFade .25s ease;
 }
 
-/* Animación suave */
-@keyframes fadeInModal {
-  from { transform:scale(0.94); opacity:0 }
-  to   { transform:scale(1); opacity:1 }
+@keyframes modalFade{
+  from { opacity:0; transform: scale(.94); }
+  to   { opacity:1; transform: scale(1); }
 }
 
-/* Título */
-.modal-title{
-  font-size:22px;
-  font-weight:700;
-  color:var(--azul-oscuro);
-  margin-top:0;
-  margin-bottom:14px;
-}
-
-/* Subtítulos */
-.req-title{
-  font-size:18px;
-  font-weight:700;
-  color:var(--azul-oscuro);
-  margin-top:18px;
-}
-
-/* Meta con iconos */
-.modal-meta p{
-  margin:10px 0;
-  font-size:15px;
-  color:var(--gris-texto);
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.modal-meta i{
-  font-size:17px;
-  color:var(--azul-oscuro);
-}
-
-.modal-meta a{
-  color:var(--azul-oscuro);
-  font-weight:600;
-  text-decoration:none;
-}
-.modal-meta a:hover{
-  text-decoration:underline;
-}
-
-/* Requisitos */
-.modal-body{
-  background:#f4f7fc;
-  border-radius:10px;
-  padding:16px;
-  margin-top:10px;
-}
-
-.modal-body ul{
-  padding-left:20px;
-}
-.modal-body li{
-  margin-bottom:6px;
-  line-height:1.45;
-}
-
-/* Botón cerrar */
+/* ===== BOTÓN CERRAR ===== */
 .modal-close{
-  position:absolute;
-  right:16px;
-  top:16px;
-  background:var(--azul-oscuro);
-  border:none;
-  color:white;
-  font-size:14px;
-  padding:6px 12px;
-  border-radius:8px;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  gap:6px;
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  background: var(--azul-oscuro);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  transition: 0.2s;
 }
 
 .modal-close i{
-  font-size:18px;
+  font-size: 18px;
 }
 
 .modal-close:hover{
-  background:#012a4b;
+  background: #012a4b;
+  transform: translateY(-2px);
 }
 
-/* Requisitos */
+/* ===== TÍTULO PRINCIPAL ===== */
+.modal-title{
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--azul-oscuro);
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* ===== META-INFORMACIÓN ===== */
+.modal-meta{
+  margin-bottom: 20px;
+}
+
+.modal-meta p{
+  margin: 8px 0;
+  font-size: 15px;
+  color: var(--gris-texto);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-meta strong{
+  color: var(--azul-oscuro);
+}
+
+.modal-meta i{
+  font-size: 18px;
+  color: var(--azul-oscuro);
+}
+
+/* Enlaces dentro del modal */
+.modal-meta a{
+  color: var(--azul-oscuro);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.modal-meta a:hover{
+  text-decoration: underline;
+}
+
+/* ===== SUBTÍTULO "REQUISITOS" ===== */
+.req-title{
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--azul-oscuro);
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+/* ===== CONTENEDOR DE REQUISITOS ===== */
 .modal-body{
-  background:#f4f7fc;
-  padding:12px;
-  border-radius:8px;
-  white-space:pre-wrap;
-  margin-top:8px;
-  font-size:14px;
+  background: #f4f7fc;
+  border-radius: 12px;
+  padding: 18px 20px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-/* Datos adicionales abajo del modal */
+.modal-body ul{
+  padding-left: 22px;
+}
+
+.modal-body li{
+  margin-bottom: 8px;
+}
+
+/* ===== INFORMACIÓN ADICIONAL (si la usas) ===== */
 .modal-extra{
-  margin-top:16px;
-  font-size:13px;
-  color:#555;
-  padding-top:10px;
-  border-top:1px solid #dde3ec;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #d8e0ea;
+  font-size: 14px;
+  color: #555;
 }
 
 .modal-extra strong{
-  color:var(--azul-oscuro);
+  color: var(--azul-oscuro);
 }
+
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px){
+
+  .modal{
+    padding: 24px 18px;
+  }
+
+  .modal-title{
+    font-size: 20px;
+  }
+
+  .modal-meta p{
+    font-size: 14px;
+  }
+
+  .req-title{
+    font-size: 18px;
+  }
+}
+
 /* =======================
    PAGINACIÓN ELEGANTE
    ======================= */
