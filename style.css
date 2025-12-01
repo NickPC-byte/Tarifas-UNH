@@ -294,17 +294,11 @@ body{
 /* Requisitos */
 .modal-body{
   background:#f4f7fc;
-  border-radius:10px;
   padding:16px;
+  border-radius:10px;
   margin-top:10px;
-}
-
-.modal-body ul{
-  padding-left:20px;
-}
-.modal-body li{
-  margin-bottom:6px;
-  line-height:1.45;
+  font-size:14px;
+  white-space:pre-wrap;
 }
 
 /* Botón cerrar */
