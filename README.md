@@ -7,6 +7,7 @@ Este repositorio contiene un widget web que muestra las tarifas del TUPA/TUSNE d
 - `style.css` — estilos (paleta institucional)
 - `script.js` — lógica: carga CSV, filtros, búsqueda y render
 - No requiere servidor: funciona en GitHub Pages
+  
 
 ## Pasos para publicar en GitHub Pages
 1. Crear un repositorio público (por ejemplo `tupa-tusne-widget`) en GitHub.
