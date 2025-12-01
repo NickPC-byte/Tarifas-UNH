@@ -28,7 +28,6 @@ body{
 }
 .site-header h1{ margin:0; font-size:20px; font-weight:600 }
 
-/* Container */
 .container{
   max-width:1200px;
   margin:20px auto;
@@ -233,6 +232,7 @@ body{
   z-index:9999;
 }
 
+/* Modal ventana */
 .modal{
   background:#ffffff;
   width:100%;
@@ -268,20 +268,29 @@ body{
 }
 
 /* Meta con iconos */
-.modal-meta p{
+/* Evitamos que aparezcan viñetas antes del texto rellenado */
+.modal-meta{
+  margin:0;
+  padding:0;
+}
+.modal-meta .meta-row{
   margin:10px 0;
   font-size:15px;
   color:var(--gris-texto);
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:10px;
 }
+.modal-meta .meta-row strong{ margin-right:6px; min-width:220px; display:inline-block; font-weight:700; color:var(--azul-oscuro) }
+.modal-meta .meta-val{ display:inline-block; margin-left:0; font-weight:600; color:var(--gris-texto) }
 
+/* icono */
 .modal-meta i{
-  font-size:17px;
+  font-size:18px;
   color:var(--azul-oscuro);
 }
 
+/* Enlaces dentro de meta */
 .modal-meta a{
   color:var(--azul-oscuro);
   font-weight:600;
@@ -297,9 +306,11 @@ body{
   padding:16px;
   border-radius:10px;
   margin-top:10px;
-  font-size:14px;
-  white-space:pre-wrap;
 }
+
+/* Lista en requisitos */
+.modal-body ul{ padding-left:20px; margin:8px 0; }
+.modal-body li{ margin-bottom:6px; line-height:1.45; }
 
 /* Botón cerrar */
 .modal-close{
@@ -317,24 +328,8 @@ body{
   align-items:center;
   gap:6px;
 }
-
-.modal-close i{
-  font-size:18px;
-}
-
-.modal-close:hover{
-  background:#012a4b;
-}
-
-/* Requisitos */
-.modal-body{
-  background:#f4f7fc;
-  padding:12px;
-  border-radius:8px;
-  white-space:pre-wrap;
-  margin-top:8px;
-  font-size:14px;
-}
+.modal-close i{ font-size:18px }
+.modal-close:hover{ background:#012a4b }
 
 /* Datos adicionales abajo del modal */
 .modal-extra{
@@ -345,13 +340,9 @@ body{
   border-top:1px solid #dde3ec;
 }
 
-.modal-extra strong{
-  color:var(--azul-oscuro);
-}
-/* =======================
-   PAGINACIÓN ELEGANTE
-   ======================= */
+.modal-extra strong{ color:var(--azul-oscuro) }
 
+/* PAGINACIÓN */
 .pagination{
   display:flex;
   justify-content:center;
@@ -360,8 +351,6 @@ body{
   margin-top:24px;
   flex-wrap:wrap;
 }
-
-/* Botones */
 .page-btn{
   padding:8px 12px;
   border-radius:8px;
@@ -374,13 +363,5 @@ body{
   min-width:36px;
   text-align:center;
 }
-
-.page-btn:hover{
-  background:var(--azul-claro);
-  color:#fff;
-}
-
-.page-btn.active{
-  background:var(--azul-oscuro);
-  color:#fff;
-}
+.page-btn:hover{ background:var(--azul-claro); color:#fff; }
+.page-btn.active{ background:var(--azul-oscuro); color:#fff; }
