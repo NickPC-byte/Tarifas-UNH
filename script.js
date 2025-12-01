@@ -330,40 +330,41 @@ function renderPagination(totalPages, current){
 }
 
 // =============================
-//   NUEVO MODAL ELEGANTE
+//   NUEVO MODAL ELEGANTE (CORREGIDO)
 // =============================
 function openModal(item){
 
-  // Título del modal (tarifa/proceso)
+  // TÍTULO
   modalTitle.textContent = item.proceso || item.tarifa || "Detalle";
 
-  // META INFORMATIVA (con íconos)
-  modalUnidad.innerHTML = `<i class="bi bi-building"></i> ${escapeHTML(item.unidad || "—")}`;
-  modalArea.innerHTML = `<i class="bi bi-diagram-3"></i> ${escapeHTML(item.area || "—")}`;
+  // UNIDAD / ÁREA (solo texto dentro del span)
+  modalUnidad.textContent = item.unidad || "—";
+  modalArea.textContent = item.area || "—";
 
-  // Correo con enlace clicable
+  // CORREO (solo texto dentro del span + link fuera)
   if(item.correo){
-    modalCorreo.innerHTML =
-      `<i class="bi bi-envelope"></i> 
-       <a href="mailto:${item.correo}" target="_blank">${item.correo}</a>`;
+    modalCorreo.textContent = item.correo;
+    const link = document.getElementById("modalCorreoLink");
+    link.href = `mailto:${item.correo}`;
   } else {
-    modalCorreo.innerHTML = `<i class="bi bi-envelope"></i> —`;
+    modalCorreo.textContent = "—";
+    document.getElementById("modalCorreoLink").href = "#";
   }
 
-  // Teléfono con link hacia WhatsApp
+  // TELÉFONO (solo texto dentro del span + link fuera)
   const cel = (item.celular || "").replace(/\D/g,"");
-
   if(cel){
-    modalTelefono.innerHTML =
-      `<i class="bi bi-telephone"></i> 
-       <a href="https://wa.me/51${cel}" target="_blank">${cel}</a>`;
+    modalTelefono.textContent = cel;
+    const link = document.getElementById("modalTelefonoLink");
+    link.href = `https://wa.me/51${cel}`;
   } else {
-    modalTelefono.innerHTML = `<i class="bi bi-telephone"></i> —`;
+    modalTelefono.textContent = "—";
+    document.getElementById("modalTelefonoLink").href = "#";
   }
 
-  // ===============================
-  //   REQUISITOS CON VIÑETAS
-  // ===============================
+  // ===================================
+  // REQUISITOS
+  // ===================================
   let text = item.requisitos || "No especificado";
   let parts = [];
 
@@ -383,15 +384,9 @@ function openModal(item){
 
   modalRequisitos.appendChild(ul);
 
-  // Mostrar modal
+  // MOSTRAR MODAL
   modalOverlay.classList.remove("hidden");
   document.body.style.overflow = "hidden";
-}
-
-
-function closeModal(){
-  modalOverlay.classList.add("hidden");
-  document.body.style.overflow = "";
 }
 
 // close handlers
