@@ -483,7 +483,7 @@ exportPdfBtn.addEventListener("click", () => {
     r.proceso || "",
     r.tarifa || "",
     (r.monto || 0).toFixed(2),
-    r.area || "",
+    r.cxc || "",
     r.origen || "",
     r.requisitos || ""
   ]);
@@ -505,7 +505,7 @@ exportPdfBtn.addEventListener("click", () => {
 
   // Use autoTable with didDrawPage to draw header & footer
   doc.autoTable({
-    head: [['Proceso', 'Tarifa', 'Monto (S/)', 'UO Encargada', 'Origen', 'Requisitos']],
+    head: [['Proceso', 'Tarifa', 'Monto (S/)', 'Unidad de Organización', 'Origen', 'Requisitos']],
     body: rows,
     startY: marginTop + 60,
     styles: { fontSize: 10, cellPadding: 6 },
