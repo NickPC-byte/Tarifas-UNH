@@ -1,19 +1,21 @@
-/* script.js corregido para los últimos IDs del HTML
+/* script.js integrado:
    - PapaParse CSV parsing
    - Fuse.js fuzzy search (si está disponible)
    - doble slider para monto (minMonto / maxMonto)
    - paginación (21 por página)
    - modal con requisitos + unidad + area + contactos
-   - calculadora de comisiones por canal
-   - orden: TUPA primero
+   - calculadora de estimados por canal en modal
+   - export PDF (jsPDF + autoTable) landscape con encabezado y pie
+   - NOTE: si tienes config.js que define SHEET_CSV_URL, el script usará esa URL automáticamente
 */
 
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
+const CSV_URL = (typeof SHEET_CSV_URL !== "undefined") ? SHEET_CSV_URL :
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvu5g5Ubgccjk_GafzxPj7J1WQYvlFLWD4OURUQQ8BgTKREDec4R5aXNRoqOgU9avsFvggsWfafWyS/pub?gid=1276577330&single=true&output=csv";
 
-// Elementos del DOM (IDs según tu último HTML)
+// DOM
 const searchInput = document.getElementById("searchInput");
 const unidadFilter = document.getElementById("unidadFilter");
-const procesoFilter = document.getElementById("procesoFilter");
+const exportPdfBtn = document.getElementById("exportPdfBtn");
 const cardsContainer = document.getElementById("cardsContainer");
 const statusEl = document.getElementById("status");
 const paginationEl = document.getElementById("pagination");
@@ -31,13 +33,13 @@ const modalArea = document.getElementById("modalArea");
 const modalCorreo = document.getElementById("modalCorreo");
 const modalTelefono = document.getElementById("modalTelefono");
 const modalRequisitos = document.getElementById("modalRequisitos");
-
 const modalCloseBtn = document.getElementById("modalClose");
-const paymentChannel = document.getElementById("paymentChannel");
-const commissionBox = document.getElementById("commissionBox");
-const calcMonto = document.getElementById("calcMonto");
-const calcCommission = document.getElementById("calcCommission");
-const calcTotal = document.getElementById("calcTotal");
+const modalCorreoLink = document.getElementById("modalCorreoLink");
+const modalTelefonoLink = document.getElementById("modalTelefonoLink");
+
+// Modal calc controls
+const canalSelect = document.getElementById("canalSelect");
+const estimationResult = document.getElementById("estimationResult");
 
 // Data
 let rawData = [];
@@ -47,7 +49,7 @@ let filteredData = [];
 let pageSize = 21;
 let currentPage = 1;
 
-// UTILIDADES
+// Utilities
 function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
 
 function parseMonto(v){
@@ -71,7 +73,7 @@ function escapeHTML(s){
   return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
 }
 
-// Mapear fila CSV a modelo consistente
+// Map CSV row to normalized object
 function mapRow(row){
   const normalized = {};
   Object.keys(row || {}).forEach(k => normalized[keyify(k)] = (row[k] || "").toString().trim());
@@ -91,7 +93,7 @@ function mapRow(row){
   return out;
 }
 
-// CARGA CSV con PapaParse
+// Load CSV via PapaParse
 function loadCSV(url){
   statusEl.textContent = "Cargando datos...";
   if(typeof Papa === "undefined"){
@@ -111,7 +113,8 @@ function loadCSV(url){
         statusEl.textContent = "No se encontraron registros.";
         return;
       }
-      // Inicializar búsqueda Fuse si está disponible
+
+      // Fuse.js fuzzy search init if available
       if(typeof Fuse !== "undefined"){
         fuse = new Fuse(mappedData, {
           keys: [
@@ -139,7 +142,7 @@ function loadCSV(url){
   });
 }
 
-// Inicializar rango de monto y sliders
+// Initialize monto slider bounds
 function initMontoRange(){
   const montos = mappedData.map(r => r.monto || 0);
   const min = Math.min(...montos);
@@ -175,41 +178,31 @@ function onSliderChange(){
   applyAllFilters();
 }
 
-// Poblar selects
+// Populate Unidad select (Proceso removed intentionally)
 function populateFilters(){
-  // unidad and proceso unique sorted
   const unidades = Array.from(new Set(mappedData.map(d => d.unidad).filter(Boolean))).sort();
-  const procesos = Array.from(new Set(mappedData.map(d => d.proceso).filter(Boolean))).sort();
 
   unidadFilter.innerHTML = `<option value="">Unidad Responsable</option>`;
-  procesoFilter.innerHTML = `<option value="">Proceso</option>`;
 
   unidades.forEach(u => {
     const opt = document.createElement("option");
     opt.value = u; opt.textContent = u;
     unidadFilter.appendChild(opt);
   });
-  procesos.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p; opt.textContent = p;
-    procesoFilter.appendChild(opt);
-  });
 
   unidadFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
-  procesoFilter.onchange = () => { currentPage = 1; applyAllFilters(); };
 }
 
-// Aplica búsqueda + filtros + monto + orden + paginación
+// Apply search + filters + monto + ordering and then pagination
 function applyAllFilters(){
   const q = (searchInput.value || "").trim();
   const unidad = unidadFilter.value;
-  const proceso = procesoFilter.value;
   const minV = Math.min(Number(minMontoInput.value), Number(maxMontoInput.value));
   const maxV = Math.max(Number(minMontoInput.value), Number(maxMontoInput.value));
 
   let results = mappedData.slice();
 
-  // Búsqueda con Fuse si disponible y si query >=2 chars
+  // fuzzy search
   if(q.length >= 2 && fuse){
     const res = fuse.search(q);
     results = res.map(r => r.item);
@@ -223,17 +216,16 @@ function applyAllFilters(){
     );
   }
 
-  // filtros
+  // unidad filter
   if(unidad) results = results.filter(r => r.unidad === unidad);
-  if(proceso) results = results.filter(r => r.proceso === proceso);
 
-  // monto
+  // monto filter
   results = results.filter(r => (r.monto || 0) >= minV && (r.monto || 0) <= maxV);
 
-  // Orden: TUPA primero
+  // Order TUPA first
   results.sort((a,b) => {
-    const ao = ((a.origen||"") + "").toLowerCase();
-    const bo = ((b.origen||"") + "").toLowerCase();
+    const ao = (a.origen || "").toString().toLowerCase();
+    const bo = (b.origen || "").toString().toLowerCase();
     if(ao === "tupa" && bo !== "tupa") return -1;
     if(ao !== "tupa" && bo === "tupa") return 1;
     return 0;
@@ -243,7 +235,7 @@ function applyAllFilters(){
   renderPage(1);
 }
 
-// Render paginated page
+// RENDER pagination & page
 function renderPage(page){
   currentPage = page;
   const total = filteredData.length;
@@ -255,31 +247,31 @@ function renderPage(page){
   const end = start + pageSize;
   const pageItems = filteredData.slice(start, end);
 
-  renderCards(pageItems, start);
+  renderCards(pageItems);
   renderPagination(totalPages, page);
   // scroll to top of container
   window.scrollTo({ top: document.querySelector(".container").offsetTop - 10, behavior: "smooth" });
 }
 
-// Render cards
-function renderCards(items, globalStartIndex = 0){
+function renderCards(items){
   cardsContainer.innerHTML = "";
   if(!items || items.length === 0){
     cardsContainer.innerHTML = `<div class="status">No se encontraron resultados.</div>`;
     return;
   }
 
-  items.forEach((item, idx) => {
+  items.forEach(item => {
     const div = document.createElement("div");
     div.className = "card";
 
-    // PROCESO as title, TARIFA and MONTO in meta
+    const montoDisplay = item.monto ? item.monto.toString() : (item.montoRaw || "0");
+
     div.innerHTML = `
-      <div class="tag-origen">${escapeHTML(item.origen || "")}</div>
+      <div class="tag-origen">Origen: ${escapeHTML(item.origen || "")}</div>
       <div class="card-title">${escapeHTML(item.proceso || "—")}</div>
 
       <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa || "—")}</div>
-      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML((item.monto || 0).toString())}</div>
+      <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(montoDisplay)}</div>
       <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad || "—")}</div>
       <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area || "—")}</div>
 
@@ -290,7 +282,7 @@ function renderCards(items, globalStartIndex = 0){
       </div>
     `;
 
-    // attach listener for modal button
+    // attach listener for modal
     const reqBtn = div.querySelector(".btn-requisitos");
     reqBtn.addEventListener("click", () => {
       const it = JSON.parse(decodeURIComponent(reqBtn.getAttribute("data-item")));
@@ -301,7 +293,7 @@ function renderCards(items, globalStartIndex = 0){
   });
 }
 
-// Render pagination UI
+// Pagination UI
 function renderPagination(totalPages, current){
   paginationEl.innerHTML = "";
   if(totalPages <= 1) return;
@@ -314,10 +306,11 @@ function renderPagination(totalPages, current){
     return b;
   };
 
-  // first, prev
+  // First / Prev
   paginationEl.appendChild(createBtn("«", "page-btn", () => renderPage(1)));
   paginationEl.appendChild(createBtn("‹", "page-btn", () => renderPage(Math.max(1, current-1))));
 
+  // Pages
   const maxButtons = 7;
   let start = Math.max(1, current - Math.floor(maxButtons/2));
   let end = Math.min(totalPages, start + maxButtons - 1);
@@ -330,96 +323,40 @@ function renderPagination(totalPages, current){
     paginationEl.appendChild(createBtn(p, cls, () => renderPage(p)));
   }
 
+  // Next / Last
   paginationEl.appendChild(createBtn("›", "page-btn", () => renderPage(Math.min(totalPages, current+1))));
   paginationEl.appendChild(createBtn("»", "page-btn", () => renderPage(totalPages)));
 }
 
-// =============================
-//   CALCULO DE COMISIONES
-// =============================
-function computeCommission(amount, channel){
-  amount = Number(amount) || 0;
-  let commission = 0;
-
-  switch(channel){
-    case "caja_unh":
-      // aplica si monto >= 20
-      commission = amount >= 20 ? 1.00 : 0;
-      break;
-    case "bn_pequeno":
-      // si monto dentro 0.10 - 144 -> S/1.80
-      commission = (amount >= 0.1 && amount <= 144) ? 1.80 : 0;
-      break;
-    case "bn_grande":
-      // mayor a 144 -> 1.25%
-      commission = amount > 144 ? Number((amount * 0.0125).toFixed(2)) : 0;
-      break;
-    case "caja_huancayo":
-      commission = 1.00;
-      break;
-    case "niubiz":
-      commission = Number((amount * 0.058).toFixed(2)); // 5.8%
-      break;
-    default:
-      commission = 0;
-  }
-
-  return Math.round((commission + Number.EPSILON) * 100) / 100;
-}
-
-function updateCommissionUI(amount, channel){
-  if(!channel){
-    commissionBox.classList.add("hidden");
-    return;
-  }
-  const commission = computeCommission(amount, channel);
-  const total = Math.round(((Number(amount || 0) + commission) + Number.EPSILON) * 100) / 100;
-
-  calcMonto.textContent = `S/ ${Number(amount || 0).toFixed(2)}`;
-  calcCommission.textContent = `S/ ${commission.toFixed(2)}`;
-  calcTotal.textContent = `S/ ${total.toFixed(2)}`;
-
-  commissionBox.classList.remove("hidden");
-}
-
-// =============================
-//   NUEVO MODAL ELEGANTE (CORREGIDO)
-// =============================
+// Open modal: show details + parse requisitos + setup calc
 function openModal(item){
-
-  // TÍTULO
   modalTitle.textContent = item.proceso || item.tarifa || "Detalle";
 
-  // UNIDAD / ÁREA (solo texto dentro del span)
+  // Unidad/Area/correo/telefono separated (no extra bullet)
   modalUnidad.textContent = item.unidad || "—";
   modalArea.textContent = item.area || "—";
 
-  // CORREO (solo texto dentro del span + link fuera)
   if(item.correo){
     modalCorreo.textContent = item.correo;
-    const link = document.getElementById("modalCorreoLink");
-    if(link) link.href = `mailto:${item.correo}`;
+    modalCorreoLink.href = `mailto:${item.correo}`;
   } else {
     modalCorreo.textContent = "—";
-    const link = document.getElementById("modalCorreoLink");
-    if(link) link.href = "#";
+    modalCorreoLink.href = "#";
   }
 
-  // TELÉFONO (solo texto dentro the span + link outside)
   const cel = (item.celular || "").replace(/\D/g,"");
   if(cel){
     modalTelefono.textContent = cel;
-    const telLink = document.getElementById("modalTelefonoLink");
-    if(telLink) telLink.href = `https://wa.me/51${cel}`;
+    modalTelefonoLink.href = `https://wa.me/51${cel}`;
   } else {
     modalTelefono.textContent = "—";
-    const telLink = document.getElementById("modalTelefonoLink");
-    if(telLink) telLink.href = "#";
+    modalTelefonoLink.href = "#";
   }
 
-  // REQUISITOS -> formato en viñetas
+  // Requisitos => bullets
   let text = item.requisitos || "No especificado";
   let parts = [];
+
   if(text.includes("\n")) parts = text.split(/\n+/);
   else if(text.includes(";")) parts = text.split(/\s*;\s*/);
   else if(text.includes(".") && text.length > 40) parts = text.split(/\.\s+/).filter(Boolean);
@@ -434,24 +371,17 @@ function openModal(item){
   });
   modalRequisitos.appendChild(ul);
 
-  // reset payment channel selector and commission box
-  if(paymentChannel) paymentChannel.value = "";
-  commissionBox.classList.add("hidden");
+  // Reset calc selection & result
+  canalSelect.value = "";
+  estimationResult.textContent = "";
+
+  // store current item for calc usage
+  modalOverlay.dataset.currentItem = encodeURIComponent(JSON.stringify(item));
 
   // show modal
   modalOverlay.classList.remove("hidden");
   modalOverlay.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
-
-  // set the monto displayed for calculations
-  // ensure we have numeric amount
-  const amount = Number(item.monto || 0);
-  if(paymentChannel){
-    // when channel changes update UI
-    paymentChannel.onchange = () => {
-      updateCommissionUI(amount, paymentChannel.value);
-    };
-  }
 }
 
 // Close modal
@@ -461,16 +391,159 @@ function closeModal(){
   document.body.style.overflow = "";
 }
 
+// Calculation logic for channels
+function calculateEstimate(item, canalKey){
+  const base = Number(item.monto || 0);
+  let commission = 0;
+  let note = "";
+
+  switch(canalKey){
+    case "caja_unh":
+      // Caja UNH: S/1.00 for amounts >= 20
+      if(base >= 20) commission = 1.00;
+      else commission = 0;
+      note = (base >= 20) ? "Caja UNH (aplica S/1.00 por montos ≥ S/20)" : "Caja UNH (no aplica para montos < S/20)";
+      break;
+    case "bn_fijo":
+      // Banco de la Nación: S/1.80 for amounts 0.10 - 144
+      if(base > 0 && base <= 144) commission = 1.80;
+      else commission = 0;
+      note = "Banco de la Nación (fijo S/1.80 para montos hasta S/144)";
+      break;
+    case "bn_pct":
+      // Banco de la Nación: 1.25% for > 144
+      if(base > 144) commission = base * 0.0125;
+      else commission = 0;
+      note = "Banco de la Nación (1.25% para montos > S/144)";
+      break;
+    case "caja_huancayo":
+      commission = 1.00;
+      note = "Caja Huancayo (S/1.00)";
+      break;
+    case "niubiz":
+      commission = base * 0.058; // 5.8%
+      note = "Niubiz (5.8% sobre monto)";
+      break;
+    default:
+      commission = 0;
+      note = "Sin canal seleccionado";
+  }
+
+  const total = base + commission;
+  return { base, commission, total, note };
+}
+
+// modal canal change handler
+canalSelect.addEventListener("change", () => {
+  const enc = modalOverlay.dataset.currentItem;
+  if(!enc) return;
+  const item = JSON.parse(decodeURIComponent(enc));
+  const canal = canalSelect.value;
+  if(!canal){
+    estimationResult.textContent = "";
+    return;
+  }
+  const res = calculateEstimate(item, canal);
+  const formatted = `Base: S/ ${res.base.toFixed(2)} — Comisión: S/ ${res.commission.toFixed(2)} — Total estimado: S/ ${res.total.toFixed(2)} (${res.note}).`;
+  estimationResult.textContent = formatted;
+});
+
 // close handlers
 if(modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", (e) => { if(e.target === modalOverlay) closeModal(); });
 
-// search + inputs handlers
+// Escape HTML helper already defined earlier (escapeHTML)
+
+// UI handlers
 searchInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
 minMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
 maxMontoInput.addEventListener("input", () => { currentPage = 1; applyAllFilters(); });
+unidadFilter.addEventListener("change", () => { currentPage = 1; applyAllFilters(); });
 
-// start
+// Export PDF button
+exportPdfBtn.addEventListener("click", () => {
+  // Determine data to export: if unidad selected, use filteredData filtered by unidad; else export filteredData
+  const unidad = unidadFilter.value;
+  let toExport = filteredData.slice();
+  if(unidad) toExport = toExport.filter(r => r.unidad === unidad);
+
+  if(!toExport || toExport.length === 0){
+    alert("No hay registros para exportar según los filtros seleccionados.");
+    return;
+  }
+
+  // Build table rows
+  const rows = toExport.map(r => [
+    r.proceso || "",
+    r.tarifa || "",
+    (r.monto || 0).toFixed(2),
+    r.area || "",
+    r.origen || "",
+    r.requisitos || ""
+  ]);
+
+  // Header text
+  const unidadLabel = unidad || "General";
+  const headerText1 = "UNIVERSIDAD NACIONAL DE HUANCAVELICA - Tarifario (Reporte)";
+  const headerText2 = `Unidad Responsable: ${unidadLabel}`;
+  const headerText3 = "El monto mostrado es referencial. El total a pagar puede incluir comisiones según el canal de pago (Caja UNH, Banco de la Nación, Caja Huancayo, Niubiz, etc.). Cotejar el monto final en la entidad recaudadora.";
+
+  // Create jsPDF (landscape)
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  // Add title on first page top
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginLeft = 40;
+  const marginTop = 40;
+
+  // Use autoTable with didDrawPage to draw header & footer
+  doc.autoTable({
+    head: [['Proceso', 'Tarifa', 'Monto (S/)', 'Área', 'Origen', 'Requisitos']],
+    body: rows,
+    startY: marginTop + 60,
+    styles: { fontSize: 10, cellPadding: 6 },
+    headStyles: { fillColor: [0, 56, 102], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 120 }, // proceso
+      1: { cellWidth: 150 }, // tarifa
+      2: { cellWidth: 60 },  // monto
+      3: { cellWidth: 120 }, // area
+      4: { cellWidth: 80 },  // origen
+      5: { cellWidth: 260 }  // requisitos (ancha)
+    },
+    didDrawPage: function (data) {
+      // Header
+      doc.setFontSize(12);
+      doc.setTextColor(0, 40, 80);
+      doc.text(headerText1, marginLeft, 30);
+      doc.setFontSize(10);
+      doc.text(headerText2, marginLeft, 46);
+      doc.setFontSize(9);
+      doc.setTextColor(60,60,60);
+      doc.text(headerText3, marginLeft, 62, { maxWidth: pageWidth - marginLeft*2 });
+
+      // Footer (only text placeholder; we'll overwrite final timestamp after generate)
+      // We'll add timestamp on last page after autoTable finishes.
+    },
+    margin: { left: marginLeft, right: 40, top: marginTop }
+  });
+
+  // Add generated timestamp on last page bottom-left
+  const now = new Date();
+  const ts = now.toLocaleString('es-PE', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const pageCount = doc.getNumberOfPages();
+  doc.setPage(pageCount);
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`Reporte generado: ${ts}`, marginLeft, doc.internal.pageSize.getHeight() - 30);
+
+  // Save file
+  const unidadSafe = unidadLabel.replace(/\s+/g, '_').replace(/[^\w_-]/g, '');
+  doc.save(`Tarifario_${unidadSafe || 'General'}.pdf`);
+});
+
+// initialize
 if(!CSV_URL){
   statusEl.textContent = "No se ha configurado la URL del CSV.";
 } else {
