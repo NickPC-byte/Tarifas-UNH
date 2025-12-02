@@ -416,3 +416,13 @@ body{
   background:var(--azul-oscuro);
   color:#fff;
 }
+
+.tarifa-warning {
+    background: #fff4d6;
+    border-left: 4px solid #ffb100;
+    padding: 12px 15px;
+    margin: 15px 0 25px 0;
+    color: #654800;
+    font-size: 14px;
+    border-radius: 6px;
+}
