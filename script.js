@@ -273,7 +273,7 @@ function renderCards(items){
       <div class="meta"><strong>Tarifa:</strong> ${escapeHTML(item.tarifa || "—")}</div>
       <div class="meta"><strong>Monto:</strong> S/ ${escapeHTML(montoDisplay)}</div>
       <div class="meta"><strong>Unidad:</strong> ${escapeHTML(item.unidad || "—")}</div>
-      <div class="meta"><strong>Área:</strong> ${escapeHTML(item.area || "—")}</div>
+      <div class="meta"><strong>Responsable:</strong> ${escapeHTML(item.area || "—")}</div>
 
       <div class="actions">
         <button class="btn btn-requisitos" data-item='${encodeURIComponent(JSON.stringify(item))}'><i class="bi bi-list-check"></i> Requisitos</button>
