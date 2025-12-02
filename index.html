@@ -10,6 +10,10 @@
 
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- jsPDF + autoTable (para exportar PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -29,15 +33,18 @@
             <input id="searchInput" type="text" placeholder="Buscar (tarifa, proceso, unidad, área)...">
         </div>
 
-        <!-- Selects -->
+        <!-- Selects + Export -->
         <div class="filters-wrap">
-            <select id="unidadFilter" class="filter-select">
-                <option value="">Unidad Responsable</option>
-            </select>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <select id="unidadFilter" class="filter-select">
+                    <option value="">Unidad Responsable</option>
+                </select>
 
-            <select id="procesoFilter" class="filter-select">
-                <option value="">Proceso</option>
-            </select>
+                <!-- Export PDF button (a la derecha del select) -->
+                <button id="exportPdfBtn" class="btn-export" title="Exportar tarifas a PDF">
+                    <i class="bi bi-file-earmark-pdf-fill"></i> Exportar PDF
+                </button>
+            </div>
         </div>
 
         <!-- Monto -->
@@ -69,23 +76,15 @@
 
 <!-- Modal -->
 <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal" role="dialog" aria-modal="true">
 
         <!-- Botón cerrar -->
-        <button id="modalClose" class="modal-close" aria-label="Cerrar modal">
+        <button id="modalClose" class="modal-close">
             <i class="bi bi-x-circle-fill"></i> Cerrar
         </button>
 
         <!-- Título -->
         <h2 id="modalTitle" class="modal-title"></h2>
-
-        <!-- Mensaje institucional fijo (versión amigable) -->
-        <div class="modal-info">
-          <i class="bi bi-info-circle-fill"></i>
-          <div>
-            <strong>Importante:</strong> Los montos mostrados son el <em>monto base</em>. Las comisiones por cobro varían según el canal de pago y se muestran como estimado. Siempre confirme el monto final con la entidad recaudadora.
-          </div>
-        </div>
 
         <!-- Meta con íconos -->
         <div class="modal-meta">
@@ -105,7 +104,7 @@
             <p>
                 <i class="bi bi-envelope-fill"></i>
                 <strong>Correo:</strong>
-                <a id="modalCorreoLink" href="#" target="_blank" rel="noopener noreferrer">
+                <a id="modalCorreoLink" href="#" target="_blank">
                     <span id="modalCorreo"></span>
                 </a>
             </p>
@@ -113,7 +112,7 @@
             <p>
                 <i class="bi bi-telephone-fill"></i>
                 <strong>Teléfono:</strong>
-                <a id="modalTelefonoLink" href="#" target="_blank" rel="noopener noreferrer">
+                <a id="modalTelefonoLink" href="#" target="_blank">
                     <span id="modalTelefono"></span>
                 </a>
             </p>
@@ -122,26 +121,19 @@
         <h3 class="req-title">Requisitos</h3>
         <div id="modalRequisitos" class="modal-body"></div>
 
-        <!-- ---------------------------
-             NUEVA SECCIÓN: CALCULADORA
-             --------------------------- -->
-        <div class="modal-calculator">
-          <label for="paymentChannel"><strong>Seleccione canal de pago</strong></label>
-          <select id="paymentChannel" class="filter-select">
-            <option value="">-- Seleccionar --</option>
-            <option value="caja_unh">Caja UNH (S/ 1.00 — aplica para montos ≥ S/20)</option>
-            <option value="bn_pequeno">Banco de la Nación (S/0.10 - S/144): S/ 1.80</option>
-            <option value="bn_grande">Banco de la Nación (> S/144): 1.25% del monto</option>
-            <option value="caja_huancayo">Caja Huancayo: S/ 1.00</option>
-            <option value="niubiz">Niubiz (Yape / tarjetas): 5.8% del monto</option>
-          </select>
+        <!-- Calculadora de comisiones: canal + resultado -->
+        <div class="calc-section">
+            <label for="canalSelect"><strong>Calcular estimado por canal:</strong></label>
+            <select id="canalSelect" class="filter-select small">
+                <option value="">Seleccionar canal...</option>
+                <option value="caja_unh">Caja UNH (S/1.00, aplica S/ ≥ 20)</option>
+                <option value="bn_fijo">Banco de la Nación (S/1.80 para S/0.10–S/144)</option>
+                <option value="bn_pct">Banco de la Nación (1.25% para > S/144)</option>
+                <option value="caja_huancayo">Caja Huancayo (S/1.00)</option>
+                <option value="niubiz">Niubiz (Yape/Visa/Mcard 5.8%)</option>
+            </select>
 
-          <div id="commissionBox" class="commission-box hidden">
-            <div class="commission-row"><strong>Monto base:</strong> <span id="calcMonto">S/ 0.00</span></div>
-            <div class="commission-row"><strong>Comisión estimada:</strong> <span id="calcCommission">S/ 0.00</span></div>
-            <div class="commission-row total"><strong>Total estimado a pagar:</strong> <span id="calcTotal">S/ 0.00</span></div>
-            <div class="commission-note">El cálculo es un estimado. Confirme el monto en la entidad recaudadora.</div>
-          </div>
+            <div id="estimationResult" class="estimation-result" aria-live="polite" style="margin-top:10px;"></div>
         </div>
 
     </div>
