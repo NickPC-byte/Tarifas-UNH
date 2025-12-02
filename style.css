@@ -66,6 +66,7 @@ body{
   display:flex;
   gap:10px;
   flex-wrap:wrap;
+  align-items:center;
 }
 .filter-select{
   padding:10px 12px;
@@ -75,6 +76,26 @@ body{
   width:220px;
   font-size:14px;
 }
+
+/* Export button beside select */
+.btn-export{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:#c822bc;
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  padding:10px 12px;
+  cursor:pointer;
+  font-weight:700;
+  box-shadow:0 6px 18px rgba(200,34,188,0.12);
+}
+.btn-export i{ font-size:16px; }
+.btn-export:hover{ background:#a01583; }
+
+/* small select (modal calc) */
+.filter-select.small{ width:auto; padding:8px 10px; font-size:13px; }
 
 /* Monto slider */
 .monto-filter{
@@ -259,21 +280,6 @@ body{
   margin-bottom:14px;
 }
 
-/* Mensaje institucional fijo (info box) */
-.modal-info{
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-  background:#e9f3ff;
-  border-left:4px solid var(--azul-claro);
-  padding:12px 14px;
-  border-radius:10px;
-  color:var(--gris-texto);
-  margin-bottom:12px;
-}
-.modal-info i{ font-size:20px; color:var(--azul-oscuro); margin-top:2px; }
-.modal-info strong{ color:var(--azul-oscuro); }
-
 /* Subtítulos */
 .req-title{
   font-size:18px;
@@ -322,6 +328,21 @@ body{
   line-height:1.45;
 }
 
+/* Calculadora dentro del modal */
+.calc-section{
+  margin-top:14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.estimation-result{
+  font-weight:700;
+  color:var(--azul-oscuro);
+  padding:8px 10px;
+  border-radius:8px;
+  background:#f0f6ff;
+}
+
 /* Botón cerrar */
 .modal-close{
   position:absolute;
@@ -346,19 +367,6 @@ body{
 .modal-close:hover{
   background:#012a4b;
 }
-
-/* ------------ CALCULADORA EN MODAL ------------ */
-.modal-calculator{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
-.commission-box{
-  background:#ffffff;
-  border:1px solid #e0eefc;
-  padding:12px;
-  border-radius:8px;
-  margin-top:6px;
-}
-.commission-row{ margin:6px 0; font-size:15px; color:var(--gris-texto) }
-.commission-row.total{ font-weight:700; color:var(--azul-oscuro) }
-.commission-note{ font-size:13px; color:#666; margin-top:8px; }
 
 /* Datos adicionales abajo del modal */
 .modal-extra{
