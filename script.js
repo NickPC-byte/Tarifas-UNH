@@ -508,7 +508,7 @@ exportPdfBtn.addEventListener("click", () => {
     head: [['Proceso', 'Tarifa', 'Monto (S/)', 'Unidad de Organización', 'Origen', 'Requisitos']],
     body: rows,
     startY: marginTop + 60,
-    styles: { fontSize: 10, cellPadding: 6 },
+    styles: { fontSize: 10, cellPadding: 6, halign: 'center' },
     headStyles: { fillColor: [0, 56, 102], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 120 }, // proceso
