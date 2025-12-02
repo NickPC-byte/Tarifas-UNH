@@ -512,20 +512,27 @@ exportPdfBtn.addEventListener("click", () => {
       4: { cellWidth: 80 },  // origen
       5: { cellWidth: 260 }  // requisitos (ancha)
     },
-    didDrawPage: function (data) {
-      // Header
-      doc.setFontSize(12);
-      doc.setTextColor(0, 40, 80);
-      doc.text(headerText1, marginLeft, 30);
-      doc.setFontSize(10);
-      doc.text(headerText2, marginLeft, 46);
-      doc.setFontSize(9);
-      doc.setTextColor(60,60,60);
-      doc.text(headerText3, marginLeft, 62, { maxWidth: pageWidth - marginLeft*2 });
+  didDrawPage: function (data) {
 
-      // Footer (only text placeholder; we'll overwrite final timestamp after generate)
-      // We'll add timestamp on last page after autoTable finishes.
-    },
+  // 👉 Dibujar encabezado SOLO en la primera página
+  if (data.pageNumber === 1) {
+
+    doc.setFontSize(12);
+    doc.setTextColor(0, 40, 80);
+    doc.text(headerText1, marginLeft, 30);
+
+    doc.setFontSize(10);
+    doc.text(headerText2, marginLeft, 46);
+
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text(headerText3, marginLeft, 62, {
+      maxWidth: pageWidth - marginLeft * 2
+    });
+  }
+
+  // 👉 El footer NO se dibuja aquí.
+},
     margin: { left: marginLeft, right: 40, top: marginTop }
   });
 
