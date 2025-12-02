@@ -499,7 +499,7 @@ exportPdfBtn.addEventListener("click", () => {
 
   // Use autoTable with didDrawPage to draw header & footer
   doc.autoTable({
-    head: [['Proceso', 'Tarifa', 'Monto (S/)', 'Área', 'Origen', 'Requisitos']],
+    head: [['Proceso', 'Tarifa', 'Monto (S/)', 'UO Encargada', 'Origen', 'Requisitos']],
     body: rows,
     startY: marginTop + 60,
     styles: { fontSize: 10, cellPadding: 6 },
