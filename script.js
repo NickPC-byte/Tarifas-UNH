@@ -82,7 +82,13 @@ function mapRow(row){
   out.origen = normalized["tupa/tusne"] || normalized["tupa/tusne (origen de la tarifa)"] || normalized["origen"] || "";
   out.unidad = normalized["centro de costo"] || normalized["unidad responsable"] || "";
   out.cxc = normalized["cxc"] || "";
-  out.area = normalized["área responsable de brindar el servicio"] || normalized["area responsable de brindar el servicio"] || normalized["area"] || out.unidad;
+  out.area =
+  normalized["área responsable"] ||
+  normalized["area responsable"] ||
+  normalized["área responsable de brindar el servicio"] ||
+  normalized["area responsable de brindar el servicio"] ||
+  normalized["area"] ||
+  "";
   out.proceso = normalized["proceso"] || "";
   out.tarifa = normalized["tarifas"] || normalized["tarifa"] || normalized["denominación de la tarifa"] || "";
   out.montoRaw = normalized["monto"] || "";
