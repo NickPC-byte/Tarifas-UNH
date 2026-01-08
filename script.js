@@ -109,44 +109,44 @@ function loadCSV(url){
   }
 
   Papa.parse(url, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: result => {
-      rawData = result.data || [];
-      mappedData = rawData.map(mapRow).filter(r => r && (r.tarifa || r.proceso));
-      if(mappedData.length === 0){
-        statusEl.textContent = "No se encontraron registros.";
-        return;
-      }
-
-      // Fuse.js fuzzy search init if available
-      if(typeof Fuse !== "undefined"){
-        fuse = new Fuse(mappedData, {
-          keys: [
-            {name: "proceso", weight: 0.9},
-            {name: "tarifa", weight: 0.8},
-            {name: "unidad", weight: 0.7},
-            {name: "area", weight: 0.5}
-          ],
-          threshold: 0.35
-        });
-      } else {
-        fuse = null;
-      }
-
-      initMontoRange();
-      populateFilters();
-      applyAllFilters();
-
-      statusEl.classList.add("hidden");
-    },
-    error: err => {
-      console.error("PapaParse error:", err);
-      statusEl.textContent = "Error cargando datos. Revisa consola.";
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  quotes: true,
+  newline: "",
+  complete: result => {
+    rawData = result.data || [];
+    mappedData = rawData.map(mapRow).filter(r => r && (r.tarifa || r.proceso));
+    if(mappedData.length === 0){
+      statusEl.textContent = "No se encontraron registros.";
+      return;
     }
-  });
-}
+
+    if(typeof Fuse !== "undefined"){
+      fuse = new Fuse(mappedData, {
+        keys: [
+          {name: "proceso", weight: 0.9},
+          {name: "tarifa", weight: 0.8},
+          {name: "unidad", weight: 0.7},
+          {name: "area", weight: 0.5}
+        ],
+        threshold: 0.35
+      });
+    } else {
+      fuse = null;
+    }
+
+    initMontoRange();
+    populateFilters();
+    applyAllFilters();
+
+    statusEl.classList.add("hidden");
+  },
+  error: err => {
+    console.error("PapaParse error:", err);
+    statusEl.textContent = "Error cargando datos. Revisa consola.";
+  }
+});
 
 // Initialize monto slider bounds
 function initMontoRange(){
