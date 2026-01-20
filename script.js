@@ -559,6 +559,6 @@ exportPdfBtn.addEventListener("click", () => {
 // initialize
 if(!CSV_URL){
   statusEl.textContent = "No se ha configurado la URL del CSV.";
-} else {
+} else { 
   loadCSV(CSV_URL);
 }
