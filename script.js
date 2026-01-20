@@ -50,7 +50,19 @@ let pageSize = 21;
 let currentPage = 1;
 
 // Utilities
-function keyify(s){ return s ? s.toString().trim().toLowerCase().replace(/\s+/g," ") : ""; }
+function keyify(s){ 
+return s
+    ? s
+        .toString()
+        .toLowerCase()
+        .replace(/\u00a0/g, " ")     // elimina NBSP
+        .replace(/[°º]/g, "°")       // normaliza N°
+        .normalize("NFD")            // separa tildes
+        .replace(/[\u0300-\u036f]/g, "") // elimina tildes
+        .trim()
+        .replace(/\s+/g, " ")
+    : "";
+}
 
 function parseMonto(v){
   if(!v) return 0;
