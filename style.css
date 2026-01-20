@@ -16,7 +16,7 @@ body{
   color:var(--gris-texto);
 }
 
-/* 🔥 NECESARIO — evita que el modal aparezca siempre */
+/*  NECESARIO — evita que el modal aparezca siempre */
 .hidden{ display:none !important; }
 
 /* Header */
