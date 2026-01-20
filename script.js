@@ -116,7 +116,7 @@ function loadCSV(url){
   newline: "",
   complete: result => {
     rawData = result.data || [];
-    mappedData = rawData.map(mapRow).filter(r => r && (r.tarifa || r.proceso));
+    mappedData = rawData.map(mapRow).filter(r => r && (r.tarifa || r.proceso|| r.unidad));
     if(mappedData.length === 0){
       statusEl.textContent = "No se encontraron registros.";
       return;
